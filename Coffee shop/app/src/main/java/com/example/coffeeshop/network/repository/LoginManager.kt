@@ -2,8 +2,8 @@ package com.example.coffeeshop.network.repository
 
 import android.util.Log
 import com.example.coffeeshop.network.api.ApiClient
-import com.example.coffeeshop.network.model.login.LoginRequest
-import com.example.coffeeshop.network.model.login.LoginResponse
+import com.example.coffeeshop.network.model.request.LoginRequest
+import com.example.coffeeshop.network.model.response.LoginResponse
 
 
 class LoginManager {

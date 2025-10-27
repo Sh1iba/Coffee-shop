@@ -1,5 +1,6 @@
 package com.example.coffeeshop.screens
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -114,6 +115,8 @@ fun OnBoardingScreen(navController: NavController) {
             }
             Button(
                 onClick = {
+                    Log.d("Navigation", "Нажата кнопка 'Начать'")
+                    Log.d("Navigation", "Пытаемся перейти с ${NavigationRoutes.ONBOARDING} на ${NavigationRoutes.REGISTRATION}")
                     navController.navigate(NavigationRoutes.REGISTRATION) {
                         popUpTo(NavigationRoutes.ONBOARDING) { inclusive = true }
                     }

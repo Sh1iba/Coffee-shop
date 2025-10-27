@@ -54,7 +54,10 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.coffeeshop.R
 import com.example.coffeeshop.navigation.NavigationRoutes
-import com.example.coffeeshop.network.repository.RegistrationManager
+import com.example.coffeeshop.network.api.ApiClient
+import com.example.coffeeshop.network.model.request.RegisterRequest
+import com.example.coffeeshop.network.model.response.ErrorResponse
+import com.example.coffeeshop.parser.ErrorParser
 import com.example.coffeeshop.ui.theme.colorBackgroudWhite
 import com.example.coffeeshop.ui.theme.colorDarkOrange
 import com.example.coffeeshop.ui.theme.colorLightGrey
@@ -63,6 +66,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 
 @Composable
 fun RegistrationScreen(navController: NavController) {
@@ -100,13 +104,13 @@ fun RegistrationScreen(navController: NavController) {
                 .height(19.dp)
                 .offset(x = 38.dp, y = 203.dp)
         )
-        var login by remember { mutableStateOf("") }
+        var name by remember { mutableStateOf("") }
         var email by remember { mutableStateOf("") }
         var password by remember { mutableStateOf("") }
         var passwordVisible by remember { mutableStateOf(false) }
 
         Text(
-            text = "Логин",
+            text = "Имя",
             fontFamily = SoraFontFamily,
             fontWeight = FontWeight.W400,
             fontSize = 16.sp,
@@ -128,8 +132,8 @@ fun RegistrationScreen(navController: NavController) {
             contentAlignment = Alignment.CenterStart
         ) {
             BasicTextField(
-                value = login,
-                onValueChange = { login = it },
+                value = name,
+                onValueChange = { name = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),
@@ -253,7 +257,8 @@ fun RegistrationScreen(navController: NavController) {
             color = Color(0xFFE3E3E3)
         )
 
-        val registrationManager = remember { RegistrationManager() }
+
+        val errorParser = remember { ErrorParser() }
         var errorMessage by remember { mutableStateOf<String?>(null) }
         var isLoading by remember { mutableStateOf(false) }
         val context = LocalContext.current
@@ -265,50 +270,50 @@ fun RegistrationScreen(navController: NavController) {
                 errorMessage = null
             }
         }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 24.dp, top = 523.dp, end = 24.dp)
-
         ) {
-
             Button(
                 onClick = {
-
-                    if (login.isEmpty() || email.isEmpty() || password.isEmpty()) {
+                    if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
                         errorMessage = "Все поля должны быть заполнены"
                         Log.d("Registration", "Все поля должны быть заполнены")
                         return@Button
                     }
 
-
                     errorMessage = null
                     isLoading = true
-
 
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
                             Log.d("Registration", "Начало регистрации...")
-                            val result = registrationManager.registerUser(login, email, password)
+
+                            val request = RegisterRequest(email, password, name)
+                            val response = ApiClient.coffeeApi.registerUser(request)
 
                             withContext(Dispatchers.Main) {
                                 isLoading = false
 
                                 when {
-                                    result.isSuccess -> {
-                                        Log.d("Registration", "Регистрация успешна!")
-                                        showSuccessDialog = true
-                                    }
-
-                                    else -> {
-                                        val error = result.exceptionOrNull()
-                                        errorMessage = when {
-                                            error?.message?.contains("400") == true -> "Неверная почта"
-                                            error?.message?.contains("409") == true -> "Пользователь уже существует"
-                                            error?.message?.contains("423") == true -> "Адрес электронной почты уже зарегистрирован"
-                                            error?.message?.contains("500") == true -> "Ошибка сервера"
-                                            else -> "Ошибка: ${error?.message ?: "Неизвестная ошибка"}"
+                                    response.isSuccessful -> {
+                                        val responseBody = response.body()
+                                        if (responseBody != null) {
+                                            Log.d("Registration", "Успешная регистрация. UserID: ${responseBody.userID}, " +
+                                                    "Email: ${responseBody.email}, " +
+                                                    "Name: ${responseBody.name}")
+                                            showSuccessDialog = true
+                                        } else {
+                                            errorMessage = "Пустой ответ от сервера"
+                                            Log.e("Registration", "Пустой ответ от сервера (${response.code()})")
                                         }
+                                    }
+                                    else -> {
+                                        val errorBody = response.errorBody()?.string() ?: "No error body"
+                                        Log.e("Registration", "Ошибка ${response.code()}: $errorBody")
+                                        errorMessage = errorParser.parseErrorMessage(errorBody) ?: "Неизвестная ошибка"
                                     }
                                 }
                             }
@@ -383,79 +388,79 @@ fun RegistrationScreen(navController: NavController) {
                         popUpTo(NavigationRoutes.REGISTRATION) { inclusive = true }
                     }
                 }
-                    
+
 
             )
 
 
         }
         if(showSuccessDialog){
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White.copy(alpha = 1f))
-
-        ) {
-
-            Column(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center)
-                    .padding(start = 24.dp, end = 24.dp, top = 80.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxSize()
+                    .background(Color.White.copy(alpha = 1f))
+
             ) {
 
-                Image(
-                    painter = painterResource(id = R.drawable.success),
-                    contentDescription = "Success",
-                    modifier = Modifier.size(100.dp)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Поздравляю!",
-                    fontFamily = SoraFontFamily,
-                    fontWeight = FontWeight.W600,
-                    fontSize = 20.sp,
-                    color = Color.Black
-                )
-
-                Text(
-                    text = "Регистрация прошла успешно.",
-                    fontFamily = SoraFontFamily,
-                    fontWeight = FontWeight.W400,
-                    fontSize = 16.sp,
-                    color = Color.Black,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        navController.navigate(NavigationRoutes.HOME) {
-                            popUpTo(NavigationRoutes.REGISTRATION) { inclusive = true }
-                        }
-                    },
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorDarkOrange
-                    )
+                        .align(Alignment.Center)
+                        .padding(start = 24.dp, end = 24.dp, top = 80.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+
+                    Image(
+                        painter = painterResource(id = R.drawable.success),
+                        contentDescription = "Success",
+                        modifier = Modifier.size(100.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     Text(
-                        text = "OK",
-                        color = Color.White,
+                        text = "Поздравляю!",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.W600,
-                        fontSize = 16.sp
+                        fontSize = 20.sp,
+                        color = Color.Black
                     )
-                }
-            } }
-} }
+
+                    Text(
+                        text = "Регистрация прошла успешно.",
+                        fontFamily = SoraFontFamily,
+                        fontWeight = FontWeight.W400,
+                        fontSize = 16.sp,
+                        color = Color.Black,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = {
+                            navController.navigate(NavigationRoutes.HOME) {
+                                popUpTo(NavigationRoutes.REGISTRATION) { inclusive = true }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorDarkOrange
+                        )
+                    ) {
+                        Text(
+                            text = "OK",
+                            color = Color.White,
+                            fontFamily = SoraFontFamily,
+                            fontWeight = FontWeight.W600,
+                            fontSize = 16.sp
+                        )
+                    }
+                } }
+        } }
 
 
 }

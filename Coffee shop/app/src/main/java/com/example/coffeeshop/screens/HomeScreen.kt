@@ -68,7 +68,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.coffeeshop.R
 import com.example.coffeeshop.history_search.SearchHistoryManager
-import com.example.coffeeshop.network.model.register.RegisterRequest
+import com.example.coffeeshop.network.model.request.RegisterRequest
 import com.example.coffeeshop.ui.theme.SoraFontFamily
 import com.example.coffeeshop.ui.theme.colorBackgroudWhite
 import com.example.coffeeshop.ui.theme.colorDarkOrange

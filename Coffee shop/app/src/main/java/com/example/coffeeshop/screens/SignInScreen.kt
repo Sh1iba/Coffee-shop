@@ -53,7 +53,6 @@ import androidx.navigation.compose.rememberNavController
 import com.example.coffeeshop.R
 import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.network.repository.LoginManager
-import com.example.coffeeshop.network.repository.RegistrationManager
 import com.example.coffeeshop.ui.theme.CoffeeShopTheme
 import com.example.coffeeshop.ui.theme.colorBackgroudWhite
 import com.example.coffeeshop.ui.theme.colorDarkOrange
@@ -75,22 +74,7 @@ fun SignInScreen(navController: NavController) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .align(Alignment.TopEnd),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Dark theme",
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(end = 8.dp)
-            )
-            Switch(
-                checked = darkTheme,
-                onCheckedChange = { darkTheme = it }
-            )
-        }
+
 
         Column(
             modifier = Modifier
