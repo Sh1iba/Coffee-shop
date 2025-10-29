@@ -1,5 +1,8 @@
 package com.example.coffeeshop.network.model.response
 
-class LoginResponse (
+data class LoginResponse(
+    val userId: Long,
     val token: String,
+    val email: String,
+    val name: String
 )

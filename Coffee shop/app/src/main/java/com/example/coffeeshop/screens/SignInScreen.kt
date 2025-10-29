@@ -52,7 +52,10 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.coffeeshop.R
 import com.example.coffeeshop.navigation.NavigationRoutes
+import com.example.coffeeshop.network.api.ApiClient
+import com.example.coffeeshop.network.model.request.LoginRequest
 import com.example.coffeeshop.network.repository.LoginManager
+import com.example.coffeeshop.parser.ErrorParser
 import com.example.coffeeshop.ui.theme.CoffeeShopTheme
 import com.example.coffeeshop.ui.theme.colorBackgroudWhite
 import com.example.coffeeshop.ui.theme.colorDarkOrange
@@ -65,309 +68,330 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun SignInScreen(navController: NavController) {
-    var darkTheme by remember { mutableStateOf(false) }
 
-    CoffeeShopTheme(darkTheme = darkTheme) {
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-
-
-        Column(
+    CoffeeShopTheme() {
+        Box(
             modifier = Modifier
-                .padding(top = 196.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            Text(
-                text = "Войти в Аккаунт",
-                fontFamily = SoraFontFamily,
-                fontWeight = FontWeight.W600,
-                fontSize = 20.sp,
-                lineHeight = 24.sp,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
+            Column(
                 modifier = Modifier
-                    .wrapContentSize()
+                    .padding(top = 196.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = "Войти в Аккаунт",
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W600,
+                    fontSize = 20.sp,
+                    lineHeight = 24.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .wrapContentSize()
+                )
 
-            )
+                Text(
+                    text = "С возвращением, мы скучали по тебе.",
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W400,
+                    fontSize = 16.sp,
+                    lineHeight = 19.2.sp,
+                    color = colorLightGrey,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 0.1f.dp)
+                )
+            }
+
+            var email by remember { mutableStateOf("") }
+            var password by remember { mutableStateOf("") }
+            var passwordVisible by remember { mutableStateOf(false) }
+
 
             Text(
-                text = "С возвращением, мы скучали по тебе.",
+                text = "Почта",
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.W400,
                 fontSize = 16.sp,
-                lineHeight = 19.2.sp,
-                color = colorLightGrey,
-                textAlign = TextAlign.Center,
+                lineHeight = 24.sp,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 0.1f.dp)
-
+                    .height(24.dp)
+                    .offset(x = 24.dp, y = 305.dp)
             )
-        }
 
-        var login by remember { mutableStateOf("") }
-        var password by remember { mutableStateOf("") }
-        var passwordVisible by remember { mutableStateOf(false) }
-
-        Text(
-            text = "Логин",
-            fontFamily = SoraFontFamily,
-            fontWeight = FontWeight.W400,
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(24.dp)
-                .offset(x = 24.dp, y = 305.dp)
-        )
-
-        Box(
-            modifier = Modifier
-                .padding(start = 22.dp, top = 330.dp, end = 22.dp)
-                .fillMaxWidth()
-                .height(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(colorLightRecGrey),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            BasicTextField(
-                value = login,
-                onValueChange = { login = it },
+            Box(
                 modifier = Modifier
+                    .padding(start = 22.dp, top = 330.dp, end = 22.dp)
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-                textStyle = LocalTextStyle.current.copy(
-                    fontSize = 16.sp,
-                    lineHeight = 16.sp
-                ),
-                singleLine = true
-            )
-        }
-
-        Text(
-            text = "Пароль",
-            fontFamily = SoraFontFamily,
-            fontWeight = FontWeight.W400,
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .width(62.dp)
-                .height(24.dp)
-                .offset(x = 24.dp, y = 373.dp)
-        )
-
-        Box(
-            modifier = Modifier
-                .padding(start = 22.dp, top = 399.dp, end = 22.dp)
-                .fillMaxWidth()
-                .height(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(colorLightRecGrey),
-            contentAlignment = Alignment.CenterStart
-
-        ) {
-            BasicTextField(
-                value = password,
-                onValueChange = { password = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-                textStyle = LocalTextStyle.current.copy(
-                    fontSize = 16.sp,
-                    lineHeight = 16.sp
-                ),
-                visualTransformation = if (passwordVisible)
-                    VisualTransformation.None
-                else
-                    PasswordVisualTransformation(),
-                singleLine = true
-            )
-
-            IconButton(
-                onClick = { passwordVisible = !passwordVisible },
-                modifier = Modifier
-                    .size(48.dp)
-                    .align(alignment = Alignment.CenterEnd)
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(colorLightRecGrey),
+                contentAlignment = Alignment.CenterStart
             ) {
-                Icon(
-                    painter = painterResource(
-                        id = if (passwordVisible)
-                            R.drawable.eye_on_foreground
-                        else
-                            R.drawable.eye_off_foreground
+                // ИЗМЕНИЛ: login -> email
+                BasicTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    textStyle = LocalTextStyle.current.copy(
+                        fontSize = 16.sp,
+                        lineHeight = 16.sp
                     ),
-                    contentDescription = if (passwordVisible)
-                        "Скрыть пароль"
-                    else
-                        "Показать пароль",
-                    tint = colorFoundationGrey
+                    singleLine = true
                 )
             }
 
-
-        }
-
-        Box(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = "забыли Пароль?",
+                text = "Пароль",
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.W400,
-                fontSize = 14.sp,
-                lineHeight = 21.sp,
-                color = colorDarkOrange,
-                textDecoration = TextDecoration.Underline,
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 22.dp,top = 441.dp)
+                    .width(62.dp)
+                    .height(24.dp)
+                    .offset(x = 24.dp, y = 373.dp)
             )
-        }
-        HorizontalDivider(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 39.dp, top = 473.dp, end = 39.dp),
-            thickness = 1.dp,
-            color = Color(0xFFE3E3E3)
-        )
-        val loginManager = remember { LoginManager() }
-        var errorMessage by remember { mutableStateOf<String?>(null) }
-        var isLoading by remember { mutableStateOf(false) }
-        val context = LocalContext.current
 
-        LaunchedEffect(errorMessage) {
-            errorMessage?.let { message ->
-                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                errorMessage = null
+            Box(
+                modifier = Modifier
+                    .padding(start = 22.dp, top = 399.dp, end = 22.dp)
+                    .fillMaxWidth()
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(colorLightRecGrey),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                BasicTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    textStyle = LocalTextStyle.current.copy(
+                        fontSize = 16.sp,
+                        lineHeight = 16.sp
+                    ),
+                    visualTransformation = if (passwordVisible)
+                        VisualTransformation.None
+                    else
+                        PasswordVisualTransformation(),
+                    singleLine = true
+                )
+
+                IconButton(
+                    onClick = { passwordVisible = !passwordVisible },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .align(alignment = Alignment.CenterEnd)
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            id = if (passwordVisible)
+                                R.drawable.eye_on_foreground
+                            else
+                                R.drawable.eye_off_foreground
+                        ),
+                        contentDescription = if (passwordVisible)
+                            "Скрыть пароль"
+                        else
+                            "Показать пароль",
+                        tint = colorFoundationGrey
+                    )
+                }
             }
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 24.dp, top = 489.dp, end = 24.dp)
 
-        ) {
-            Button(
-                onClick = {
-                    if (login.isEmpty() || password.isEmpty()) {
-                        errorMessage = "Все поля должны быть заполнены"
-                        Log.d("Login", "Все поля должны быть заполнены")
-                        return@Button
-                    }
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "забыли Пароль?",
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W400,
+                    fontSize = 14.sp,
+                    lineHeight = 21.sp,
+                    color = colorDarkOrange,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 22.dp, top = 441.dp)
+                )
+            }
+
+            HorizontalDivider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 39.dp, top = 473.dp, end = 39.dp),
+                thickness = 1.dp,
+                color = Color(0xFFE3E3E3)
+            )
+
+            val errorParser = remember { ErrorParser() }
+            var errorMessage by remember { mutableStateOf<String?>(null) }
+            var isLoading by remember { mutableStateOf(false) }
+            val context = LocalContext.current
+
+            LaunchedEffect(errorMessage) {
+                errorMessage?.let { message ->
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                     errorMessage = null
-                    isLoading = true
+                }
+            }
 
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            Log.d("Login", "Выполняется вход...")
-                            val result = loginManager.loginUser(login, password)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 24.dp, top = 489.dp, end = 24.dp)
+            ) {
+                Button(
+                    onClick = {
 
-                            withContext(Dispatchers.Main) {
-                                isLoading = false
+                        if (email.isEmpty() || password.isEmpty()) {
+                            errorMessage = "Все поля должны быть заполнены"
+                            Log.d("Login", "Все поля должны быть заполнены")
+                            return@Button
+                        }
+                        errorMessage = null
+                        isLoading = true
 
-                                when {
-                                    result.isSuccess -> {
-                                        navController.navigate(NavigationRoutes.HOME) {
-                                            popUpTo(NavigationRoutes.SIGN_IN) { inclusive = true }
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                Log.d("Login", "Выполняется вход... Email: $email")
+
+                                val request = LoginRequest(email, password)
+                                val response = ApiClient.coffeeApi.loginUser(request)
+
+                                withContext(Dispatchers.Main) {
+                                    isLoading = false
+
+                                    when {
+                                        response.isSuccessful -> {
+                                            val responseBody = response.body()
+                                            if (responseBody != null) {
+                                                Log.d("Login", "Успешный вход! UserId: ${responseBody.userId}, Token: ${responseBody.token}, Name: ${responseBody.name}")
+
+                                                // sharedPreferences.edit().apply {
+                                                //     putString("token", responseBody.token)
+                                                //     putLong("userId", responseBody.userId)
+                                                //     putString("email", responseBody.email)
+                                                //     putString("name", responseBody.name)
+                                                //     apply()
+                                                // }
+
+                                                navController.navigate(NavigationRoutes.HOME) {
+                                                    popUpTo(NavigationRoutes.SIGN_IN) { inclusive = true }
+                                                }
+                                            } else {
+                                                errorMessage = "Пустой ответ от сервера"
+                                                Log.e("Login", "Пустой ответ от сервера (${response.code()})")
+                                            }
                                         }
-                                        Log.d("Registration", "Успещный вход!")
-                                    }
+                                        else -> {
+                                            val errorBody = response.errorBody()?.string()
+                                            Log.e("Login", "Ошибка ${response.code()}: body='$errorBody'")
 
-                                    else -> {
-                                        val error = result.exceptionOrNull()
-                                        errorMessage = when {
-                                            error?.message?.contains("400") == true -> "Пользователь не найден"
-                                            error?.message?.contains("409") == true -> "Неверный пароль"
-                                            error?.message?.contains("500") == true -> "Ошибка сервера"
-                                            else -> "Ошибка: ${error?.message ?: "Неизвестная ошибка"}"
+                                            errorMessage = if (!errorBody.isNullOrEmpty()) {
+                                                errorParser.parseErrorMessage(errorBody) ?: "Ошибка сервера: ${response.code()}"
+                                            } else {
+                                                when (response.code()) {
+                                                    401 -> "Неверный email или пароль"
+                                                    403 -> "Доступ запрещен"
+                                                    404 -> "Пользователь не найден"
+                                                    500 -> "Внутренняя ошибка сервера"
+                                                    else -> "Ошибка: ${response.code()}"
+                                                }
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        } catch (e: Exception) {
-                            withContext(Dispatchers.Main) {
-                                isLoading = false
-                                errorMessage = "Ошибка сети: ${e.message}"
-                                Log.e("Registration", "Ошибка в корутине", e)
+                            } catch (e: Exception) {
+                                withContext(Dispatchers.Main) {
+                                    isLoading = false
+                                    errorMessage = "Ошибка сети: ${e.message}"
+                                    Log.e("Login", "Ошибка в корутине", e)
+                                }
                             }
                         }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colorDarkOrange
-                )
-            ) {
-                Text(
-                    text = "Войти",
-                    fontFamily = SoraFontFamily,
-                    fontWeight = FontWeight.W600,
-                    fontSize = 16.sp,
-                    lineHeight = 24.sp,
-                    color = Color.White,
+                    },
                     modifier = Modifier
-                        .width(57.dp)
-                        .height(24.dp)
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorDarkOrange
+                    ),
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) {
+                        Text("Загрузка...", color = Color.White)
+                    } else {
+                        Text(
+                            text = "Войти",
+                            fontFamily = SoraFontFamily,
+                            fontWeight = FontWeight.W600,
+                            fontSize = 16.sp,
+                            lineHeight = 24.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier,
+                verticalArrangement = Arrangement.spacedBy(15.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                HorizontalDivider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 710.dp),
+                    thickness = 4.dp,
+                    color = Color(0xFFF9F2ED)
+                )
+
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(
+                            style = SpanStyle(
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            append("У вас нет учетной записи? ")
+                        }
+                        withStyle(
+                            style = SpanStyle(
+                                color = colorDarkOrange,
+                                textDecoration = TextDecoration.Underline
+                            )
+                        ) {
+                            append("Создать")
+                        }
+                    },
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W400,
+                    fontSize = 16.sp,
+                    lineHeight = 19.2.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(19.dp)
+                        .clickable {
+                            navController.navigate(NavigationRoutes.REGISTRATION) {
+                                popUpTo(NavigationRoutes.SIGN_IN) { inclusive = true }
+                            }
+                        }
                 )
             }
         }
-
-        Column(
-            modifier = Modifier,
-            verticalArrangement = Arrangement.spacedBy(15.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-        HorizontalDivider(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 710.dp),
-            thickness = 4.dp,
-            color = Color(0xFFF9F2ED)
-        )
-
-        Text(
-            text = buildAnnotatedString {
-                withStyle(
-                    style = SpanStyle(
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    append("У вас нет учетной записи? ")
-                }
-                withStyle(
-                    style = SpanStyle(
-                        color = colorDarkOrange,
-                        textDecoration = TextDecoration.Underline
-                    )
-                ) {
-                    append("Создать")
-                }
-            },
-            fontFamily = SoraFontFamily,
-            fontWeight = FontWeight.W400,
-            fontSize = 16.sp,
-            lineHeight = 19.2.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(19.dp)
-                .clickable {
-                navController.navigate(NavigationRoutes.REGISTRATION) {
-                    popUpTo(NavigationRoutes.SIGN_IN) { inclusive = true }
-                }
-            }
-        )
-        }
-    }
     }
 }
 
