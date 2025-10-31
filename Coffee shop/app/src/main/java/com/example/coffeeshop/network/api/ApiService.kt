@@ -8,6 +8,7 @@ import com.example.coffeeshop.network.model.response.RegisterResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
 
 interface ApiService {
@@ -18,6 +19,7 @@ interface ApiService {
     @POST("auth/login")
     suspend fun loginUser(@Body request: LoginRequest): Response<LoginResponse>
 
-    @GET("/coffee/types")
-    suspend fun getAllCoffeeTypes(): Response<List<CoffeeTypeResponse>>
+    @GET("coffee/types")
+    suspend fun getAllCoffeeTypes(@Header("Authorization") token: String? = null):
+            Response<List<CoffeeTypeResponse>>
 }

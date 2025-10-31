@@ -1,6 +1,7 @@
 package com.example.coffeeshop.screens
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,14 +71,16 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.coffeeshop.R
 import com.example.coffeeshop.history_search.SearchHistoryManager
+import com.example.coffeeshop.network.Preferance.PrefsManager
 import com.example.coffeeshop.network.api.ApiClient.coffeeApi
 import com.example.coffeeshop.network.model.request.RegisterRequest
-import com.example.coffeeshop.network.model.response.CoffeeTypeResponse
 import com.example.coffeeshop.ui.theme.SoraFontFamily
 import com.example.coffeeshop.ui.theme.colorBackgroudWhite
 import com.example.coffeeshop.ui.theme.colorDarkOrange
 import com.example.coffeeshop.ui.theme.colorGrey
 import com.example.coffeeshop.ui.theme.colorGreyWhite
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -202,7 +206,9 @@ fun firstHalfOfHomeScreen() {
     var searchHistory by remember { mutableStateOf(searchHistoryManager.getSearchHistory()) }
     val focusManager = LocalFocusManager.current
 
+    // Track last time of user action
     val lastActionTime = remember { mutableStateOf(System.currentTimeMillis()) }
+    // Функция для обновления истории
     fun updateHistory() {
         searchHistory = searchHistoryManager.getSearchHistory()
     }
@@ -355,6 +361,7 @@ fun firstHalfOfHomeScreen() {
             }
         }
 
+
         if (isFocused && searchText.isEmpty()) {
             Surface(
                 modifier = Modifier
@@ -366,7 +373,7 @@ fun firstHalfOfHomeScreen() {
             ) {
                 Column {
                     if (searchHistory.isNotEmpty()) {
-                        // Clear History Button
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -414,7 +421,7 @@ fun firstHalfOfHomeScreen() {
                             }
                         }
                     } else {
-
+                        // Empty state
                         Text(
                             text = "No search history",
                             modifier = Modifier
@@ -452,14 +459,6 @@ fun CoffeeCategoryColumn(viewModel: HomeViewModel = viewModel()) {
             .height(240.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        item {
-            when {
-                viewModel.isLoading.value -> LoadingState()
-                viewModel.errorMessage.value != null -> ErrorState(viewModel)
-
-                else -> EmptyState(viewModel)
-            }
-        }
 
         items(productImages.chunked(2)) { pair ->
             Row(
@@ -480,147 +479,92 @@ fun CoffeeCategoryColumn(viewModel: HomeViewModel = viewModel()) {
     }
 }
 
-@Composable
-fun LoadingState() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator()
-    }
-}
+
 
 @Composable
-fun ErrorState(viewModel: HomeViewModel) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Warning,
-            contentDescription = "Error",
-            tint = Color.Red,
-            modifier = Modifier.size(48.dp)
-        )
-        Text(
-            text = viewModel.errorMessage.value ?: "Произошла ошибка",
-            color = Color.Red,
-            modifier = Modifier.padding(8.dp)
-        )
-        Button(
-            onClick = {  },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colorDarkOrange
-            )
-        ) {
-            Text("Обновить")
+fun CoffeeCategoryRow(modifier: Modifier = Modifier) {
+    val viewModel: HomeViewModel = viewModel()
+    val prefsManager = PrefsManager(LocalContext.current)
+    val token = prefsManager.getToken()
+
+    val coffeeTypes = remember { mutableStateOf(listOf("Все кофе")) }
+    val selectedItem = remember { mutableStateOf("Все кофе") }
+
+
+    LaunchedEffect(token) {
+        if (token != null && coffeeTypes.value.size == 1) {
+            try {
+                val response = coffeeApi.getAllCoffeeTypes(token)
+                if (response.isSuccessful) {
+                    val typesFromApi = response.body() ?: emptyList()
+                    val typeNames = typesFromApi.map { it.type }
+                    coffeeTypes.value = listOf("Все кофе") + typeNames
+                }
+            } catch (e: Exception) {
+                coffeeTypes.value = listOf(
+                    "Error",
+                )
+            }
         }
     }
-}
 
-@Composable
-fun EmptyState(viewModel: HomeViewModel) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    LazyRow(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(end = 8.dp)
     ) {
-        Text(
-            text = "Нет результатов поиска",
-            color = Color.Gray
-        )
-        Button(
-            onClick = {  },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colorDarkOrange
-            ),
-            modifier = Modifier.padding(top = 16.dp)
-        ) {
-            Text("Попробовать снова")
+        items(coffeeTypes.value) { item ->
+            Box(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .background(
+                        color = if (item == selectedItem.value) colorDarkOrange else Color(0xFFF5F5F5),
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .padding(
+                        top = 4.dp,
+                        bottom = 4.dp,
+                        start = 8.dp,
+                        end = 8.dp
+                    )
+                    .clickable {
+                        selectedItem.value = item
+                    }
+            ) {
+                Text(
+                    text = item,
+                    fontFamily = SoraFontFamily,
+                    fontWeight = if (item == selectedItem.value) FontWeight.W600 else FontWeight.W400,
+                    fontSize = 14.sp,
+                    lineHeight = 21.sp,
+                    color = if (item == selectedItem.value) Color.White else Color(0xFF313131),
+                )
+            }
         }
     }
 }
 
 class HomeViewModel : ViewModel() {
 
-    val coffeeTypes = mutableStateOf<List<CoffeeTypeUI>>(emptyList())
-    val isLoading = mutableStateOf(false)
-    val errorMessage = mutableStateOf<String?>(null)
+    val coffeeImage = mutableStateOf<RegisterRequest?>(null)
+    var lastQuery = ""
 
-    fun getCoffeeTypes() {
-        isLoading.value = true
-        errorMessage.value = null
-
+    fun logCoffeeTypes(token: String) {
         viewModelScope.launch {
             try {
-
-                val mockTypes = listOf(
-                    CoffeeTypeResponse(1, "На молоке"),
-
-                )
-
-                coffeeTypes.value = mockTypes.map {
-                    CoffeeTypeUI(
-                        id = it.id,
-                        name = it.type,
-                        isSelected = it.id == 1
-                    )
-                }
-
-                val response = coffeeApi.getAllCoffeeTypes()
+                val response = coffeeApi.getAllCoffeeTypes(token)
                 if (response.isSuccessful) {
                     val typesFromApi = response.body() ?: emptyList()
-                    coffeeTypes.value = typesFromApi.map {
-                        CoffeeTypeUI(
-                            id = it.id,
-                            name = it.type,
-                            isSelected = it.id == 1
-                        )
+                    typesFromApi.forEach { type ->
+                        Log.d("COFFEE_TYPES", "ID: ${type.id}, Type: ${type.type}")
                     }
                 } else {
-                    errorMessage.value = "Ошибка загрузки: ${response.code()}"
+                    Log.e("COFFEE_TYPES", "Ошибка: ${response.code()}")
                 }
-
-
             } catch (e: Exception) {
-                errorMessage.value = "Ошибка сети: ${e.message}"
-            } finally {
-                isLoading.value = false
+                Log.e("COFFEE_TYPES", "Ошибка сети: ${e.message}")
             }
         }
     }
-
-    // Выбор типа кофе
-    fun selectCoffeeType(typeId: Int) {
-        coffeeTypes.value = coffeeTypes.value.map {
-            it.copy(isSelected = it.id == typeId)
-        }
-
-        // Здесь можно добавить загрузку кофе по выбранному типу
-        // getCoffeeByType(typeId)
-    }
-
-    init {
-        getCoffeeTypes()
-    }
-}
-
-data class CoffeeTypeUI(
-    val id: Int,
-    val name: String,
-    val isSelected: Boolean = false
-)
-@Preview(showBackground = true, showSystemUi = true, name = "pre")
-@Composable
-fun HomeScreenPreview() {
-    HomeScreen(navController = rememberNavController())
 }
 
 @Composable
@@ -650,53 +594,6 @@ fun BottomMenuIcon(item: BottomMenuItem, isSelected: Boolean, onClick: () -> Uni
                 modifier = Modifier.size(8.dp)
                     .padding(top = 4.dp)
             )
-        }
-    }
-}
-
-@Composable
-fun CoffeeCategoryRow(modifier: Modifier = Modifier) {
-    val coffeeItems = listOf(
-        "All Coffee",
-        "Machiato",
-        "Latte",
-        "Americano"
-    )
-
-    val selectedItem = remember { mutableStateOf("All Coffee") }
-
-    LazyRow(
-        modifier = modifier
-            .fillMaxWidth(),
-        contentPadding = PaddingValues(end = 8.dp)
-    ) {
-        items(coffeeItems) { item ->
-            Box(
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .background(
-                        color = if (item == selectedItem.value) colorDarkOrange else Color(0xFFF5F5F5),
-                        shape = RoundedCornerShape(6.dp)
-                    )
-                    .padding(
-                        top = 4.dp,
-                        bottom = 4.dp,
-                        start = 8.dp,
-                        end = 8.dp
-                    )
-                    .clickable {
-                        selectedItem.value = item
-                    }
-            ) {
-                Text(
-                    text = item,
-                    fontFamily = SoraFontFamily,
-                    fontWeight = if (item == selectedItem.value) FontWeight.W600 else FontWeight.W400,
-                    fontSize = 14.sp,
-                    lineHeight = 21.sp,
-                    color = if (item == selectedItem.value) Color.White else Color(0xFF313131),
-                )
-            }
         }
     }
 }
@@ -741,4 +638,10 @@ fun BottomMenu() {
             }
         }
     }
+}
+
+@Preview(showBackground = true, showSystemUi = true, name = "pre")
+@Composable
+fun HomeScreenPreview() {
+    HomeScreen(navController = rememberNavController())
 }
