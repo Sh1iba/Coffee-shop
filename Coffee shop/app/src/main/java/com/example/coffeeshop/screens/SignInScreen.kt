@@ -29,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,12 +51,11 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.coffeeshop.R
 import com.example.coffeeshop.navigation.NavigationRoutes
+import com.example.coffeeshop.network.Preferance.PrefsManager
 import com.example.coffeeshop.network.api.ApiClient
 import com.example.coffeeshop.network.model.request.LoginRequest
-import com.example.coffeeshop.network.repository.LoginManager
 import com.example.coffeeshop.parser.ErrorParser
 import com.example.coffeeshop.ui.theme.CoffeeShopTheme
-import com.example.coffeeshop.ui.theme.colorBackgroudWhite
 import com.example.coffeeshop.ui.theme.colorDarkOrange
 import com.example.coffeeshop.ui.theme.colorLightGrey
 import com.example.coffeeshop.ui.theme.colorLightRecGrey
@@ -238,6 +236,7 @@ fun SignInScreen(navController: NavController) {
             var errorMessage by remember { mutableStateOf<String?>(null) }
             var isLoading by remember { mutableStateOf(false) }
             val context = LocalContext.current
+            val prefsManager = remember { PrefsManager(context) }
 
             LaunchedEffect(errorMessage) {
                 errorMessage?.let { message ->
@@ -278,13 +277,12 @@ fun SignInScreen(navController: NavController) {
                                             if (responseBody != null) {
                                                 Log.d("Login", "Успешный вход! UserId: ${responseBody.userId}, Token: ${responseBody.token}, Name: ${responseBody.name}")
 
-                                                // sharedPreferences.edit().apply {
-                                                //     putString("token", responseBody.token)
-                                                //     putLong("userId", responseBody.userId)
-                                                //     putString("email", responseBody.email)
-                                                //     putString("name", responseBody.name)
-                                                //     apply()
-                                                // }
+                                                prefsManager.saveUserData(
+                                                    token = responseBody.token,
+                                                    userId = responseBody.userId,
+                                                    email = responseBody.email,
+                                                    name = responseBody.name ?: ""
+                                                )
 
                                                 navController.navigate(NavigationRoutes.HOME) {
                                                     popUpTo(NavigationRoutes.SIGN_IN) { inclusive = true }
@@ -299,15 +297,9 @@ fun SignInScreen(navController: NavController) {
                                             Log.e("Login", "Ошибка ${response.code()}: body='$errorBody'")
 
                                             errorMessage = if (!errorBody.isNullOrEmpty()) {
-                                                errorParser.parseErrorMessage(errorBody) ?: "Ошибка сервера: ${response.code()}"
+                                                errorParser.parseErrorMessage(errorBody) ?: "Ошибка сервера"
                                             } else {
-                                                when (response.code()) {
-                                                    401 -> "Неверный email или пароль"
-                                                    403 -> "Доступ запрещен"
-                                                    404 -> "Пользователь не найден"
-                                                    500 -> "Внутренняя ошибка сервера"
-                                                    else -> "Ошибка: ${response.code()}"
-                                                }
+                                                "Ошибка сервера: ${response.code()}"
                                             }
                                         }
                                     }

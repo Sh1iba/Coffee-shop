@@ -63,18 +63,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.coffeeshop.R
 import com.example.coffeeshop.history_search.SearchHistoryManager
+import com.example.coffeeshop.network.api.ApiClient.coffeeApi
 import com.example.coffeeshop.network.model.request.RegisterRequest
+import com.example.coffeeshop.network.model.response.CoffeeTypeResponse
 import com.example.coffeeshop.ui.theme.SoraFontFamily
 import com.example.coffeeshop.ui.theme.colorBackgroudWhite
 import com.example.coffeeshop.ui.theme.colorDarkOrange
 import com.example.coffeeshop.ui.theme.colorGrey
 import com.example.coffeeshop.ui.theme.colorGreyWhite
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -198,9 +202,7 @@ fun firstHalfOfHomeScreen() {
     var searchHistory by remember { mutableStateOf(searchHistoryManager.getSearchHistory()) }
     val focusManager = LocalFocusManager.current
 
-    // Track last time of user action
     val lastActionTime = remember { mutableStateOf(System.currentTimeMillis()) }
-    // Функция для обновления истории
     fun updateHistory() {
         searchHistory = searchHistoryManager.getSearchHistory()
     }
@@ -331,7 +333,7 @@ fun firstHalfOfHomeScreen() {
                 }
             }
 
-            // Search Button
+
             Box(
                 modifier = Modifier
                     .size(52.dp)
@@ -353,7 +355,6 @@ fun firstHalfOfHomeScreen() {
             }
         }
 
-        // Search History Panel
         if (isFocused && searchText.isEmpty()) {
             Surface(
                 modifier = Modifier
@@ -413,7 +414,7 @@ fun firstHalfOfHomeScreen() {
                             }
                         }
                     } else {
-                        // Empty state
+
                         Text(
                             text = "No search history",
                             modifier = Modifier
@@ -547,17 +548,75 @@ fun EmptyState(viewModel: HomeViewModel) {
     }
 }
 
-// Обновленный ViewModel
 class HomeViewModel : ViewModel() {
 
-    val coffeeImage = mutableStateOf<RegisterRequest?>(null)
+    val coffeeTypes = mutableStateOf<List<CoffeeTypeUI>>(emptyList())
     val isLoading = mutableStateOf(false)
     val errorMessage = mutableStateOf<String?>(null)
-    var lastQuery = ""
+
+    fun getCoffeeTypes() {
+        isLoading.value = true
+        errorMessage.value = null
+
+        viewModelScope.launch {
+            try {
+
+                val mockTypes = listOf(
+                    CoffeeTypeResponse(1, "На молоке"),
+
+                )
+
+                coffeeTypes.value = mockTypes.map {
+                    CoffeeTypeUI(
+                        id = it.id,
+                        name = it.type,
+                        isSelected = it.id == 1
+                    )
+                }
+
+                val response = coffeeApi.getAllCoffeeTypes()
+                if (response.isSuccessful) {
+                    val typesFromApi = response.body() ?: emptyList()
+                    coffeeTypes.value = typesFromApi.map {
+                        CoffeeTypeUI(
+                            id = it.id,
+                            name = it.type,
+                            isSelected = it.id == 1
+                        )
+                    }
+                } else {
+                    errorMessage.value = "Ошибка загрузки: ${response.code()}"
+                }
 
 
+            } catch (e: Exception) {
+                errorMessage.value = "Ошибка сети: ${e.message}"
+            } finally {
+                isLoading.value = false
+            }
+        }
+    }
+
+    // Выбор типа кофе
+    fun selectCoffeeType(typeId: Int) {
+        coffeeTypes.value = coffeeTypes.value.map {
+            it.copy(isSelected = it.id == typeId)
+        }
+
+        // Здесь можно добавить загрузку кофе по выбранному типу
+        // getCoffeeByType(typeId)
+    }
+
+    init {
+        getCoffeeTypes()
+    }
 }
 
+data class CoffeeTypeUI(
+    val id: Int,
+    val name: String,
+    val isSelected: Boolean = false
+)
 @Preview(showBackground = true, showSystemUi = true, name = "pre")
 @Composable
 fun HomeScreenPreview() {

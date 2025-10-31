@@ -439,7 +439,7 @@ fun RegistrationScreen(navController: NavController) {
 
                     Button(
                         onClick = {
-                            navController.navigate(NavigationRoutes.HOME) {
+                            navController.navigate(NavigationRoutes.SIGN_IN) {
                                 popUpTo(NavigationRoutes.REGISTRATION) { inclusive = true }
                             }
                         },

@@ -3,9 +3,11 @@ package com.example.coffeeshop.network.api
 import com.example.coffeeshop.network.model.request.LoginRequest
 import com.example.coffeeshop.network.model.response.LoginResponse
 import com.example.coffeeshop.network.model.request.RegisterRequest
+import com.example.coffeeshop.network.model.response.CoffeeTypeResponse
 import com.example.coffeeshop.network.model.response.RegisterResponse
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface ApiService {
@@ -16,4 +18,6 @@ interface ApiService {
     @POST("auth/login")
     suspend fun loginUser(@Body request: LoginRequest): Response<LoginResponse>
 
+    @GET("/coffee/types")
+    suspend fun getAllCoffeeTypes(): Response<List<CoffeeTypeResponse>>
 }
