@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,6 +32,8 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
@@ -40,6 +43,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +52,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -61,6 +66,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,11 +75,14 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.example.coffeeshop.R
 import com.example.coffeeshop.history_search.SearchHistoryManager
 import com.example.coffeeshop.network.Preferance.PrefsManager
 import com.example.coffeeshop.network.api.ApiClient.coffeeApi
 import com.example.coffeeshop.network.model.request.RegisterRequest
+import com.example.coffeeshop.network.model.response.CoffeeResponse
 import com.example.coffeeshop.ui.theme.SoraFontFamily
 import com.example.coffeeshop.ui.theme.colorBackgroudWhite
 import com.example.coffeeshop.ui.theme.colorDarkOrange
@@ -87,13 +96,24 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(navController: NavHostController = rememberNavController()) {
+    val viewModel: HomeViewModel = viewModel()
+    val prefsManager = PrefsManager(LocalContext.current)
+    val token = prefsManager.getToken()
+    
+    val selectedTypeId = remember { mutableStateOf<Int?>(null) }
+    
+    LaunchedEffect(Unit) {
+        if (token != null) {
+            viewModel.loadAllCoffee(token)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(color = colorBackgroudWhite)
     ) {
-
-        secondHalfOfHomeScreen()
+        secondHalfOfHomeScreen(selectedTypeId, viewModel)
 
         Box(
             modifier = Modifier
@@ -122,7 +142,10 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
 }
 
 @Composable
-fun secondHalfOfHomeScreen() {
+fun secondHalfOfHomeScreen(
+    selectedTypeId: MutableState<Int?>,
+    viewModel: HomeViewModel
+) {
     Scaffold(
         bottomBar = {
             BottomMenu()
@@ -130,17 +153,30 @@ fun secondHalfOfHomeScreen() {
     ) { innerPadding ->
         Box(
             modifier = Modifier
-                .width(327.dp)
-                .height(545.dp)
-                .offset(x = 24.dp, y = 375.dp)
+                .fillMaxWidth()
+                .height(600.dp)
+                .offset(y = 375.dp)
                 .padding(innerPadding)
         ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp)
+            ) {
                 CoffeeCategoryRow(
-                    modifier = Modifier
-                        .padding(bottom = 16.dp)
+                    onCoffeeTypeSelected = { typeId ->
+                        selectedTypeId.value = typeId
+                    },
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
-                CoffeeCategoryColumn()
+
+                CoffeeCategoryColumn(
+                    coffeeList = viewModel.getFilteredCoffee(selectedTypeId.value),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
+                Spacer(modifier = Modifier.height(46.dp))
             }
         }
     }
@@ -445,51 +481,156 @@ data class BottomMenuItem(
 )
 
 @Composable
-fun CoffeeCategoryColumn(viewModel: HomeViewModel = viewModel()) {
-    val productImages = listOf(
-        R.drawable.item_1,
-        R.drawable.item_2,
-        R.drawable.item_2,
-        R.drawable.item_2
-    )
+fun CoffeeCategoryColumn(
+    coffeeList: List<CoffeeResponse>,
+    modifier: Modifier = Modifier
+) {
+    val baseUrl = "http://10.0.2.2:8080"
+    val prefsManager = PrefsManager(LocalContext.current)
+    val token = prefsManager.getToken() ?: ""
 
     LazyColumn(
-        modifier = Modifier
-            .width(327.dp)
-            .height(240.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 160.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(bottom = 16.dp)
     ) {
-
-        items(productImages.chunked(2)) { pair ->
+        items(coffeeList.chunked(2)) { pair ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(15.dp)
             ) {
-                pair.forEach { imageRes ->
-                    Image(
-                        painter = painterResource(id = imageRes),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .width(156.dp)
-                            .height(238.dp)
-                    )
+                pair.forEach { coffee ->
+                    CoffeeItem(coffee, baseUrl, token)
+                }
+
+                if (pair.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
     }
 }
 
+@Composable
+fun CoffeeItem(coffee: CoffeeResponse, baseUrl: String, token: String) {
+    val imageUrl = "$baseUrl/api/coffee/image/${coffee.imageName}"
+
+    val imagePainter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(LocalContext.current)
+            .data(imageUrl)
+            .setHeader("Authorization", token)
+            .build()
+    )
+
+    Card(
+        modifier = Modifier
+            .width(156.dp)
+            .height(238.dp),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(125.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFF2F2F2))
+            ) {
+                Image(
+                    painter = imagePainter,
+                    contentDescription = coffee.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = coffee.name,
+                fontFamily = SoraFontFamily,
+                fontWeight = FontWeight.W600,
+                fontSize = 16.sp,
+                color = Color(0xFF2F2D2C),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = coffee.type.type,
+                fontFamily = SoraFontFamily,
+                fontWeight = FontWeight.W400,
+                fontSize = 12.sp,
+                color = Color(0xFF9B9B9B),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "₽ ${coffee.price}",
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W600,
+                    fontSize = 18.sp,
+                    color = Color(0xFF2F2D2C)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(32.dp) // Немного уменьшил кнопку
+                        .background(
+                            color = colorDarkOrange,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .clickable {
+                            // TODO: Добавить логику добавления в корзину
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "+",
+                        color = Color.White,
+                        fontSize = 18.sp, // Немного уменьшил плюс
+                        fontWeight = FontWeight.Normal
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        }
+    }
+}
 
 
 @Composable
-fun CoffeeCategoryRow(modifier: Modifier = Modifier) {
+fun CoffeeCategoryRow(
+    onCoffeeTypeSelected: (Int?) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val viewModel: HomeViewModel = viewModel()
     val prefsManager = PrefsManager(LocalContext.current)
     val token = prefsManager.getToken()
 
     val coffeeTypes = remember { mutableStateOf(listOf("Все кофе")) }
     val selectedItem = remember { mutableStateOf("Все кофе") }
-
+    val selectedTypeId = remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(token) {
         if (token != null && coffeeTypes.value.size == 1) {
@@ -499,11 +640,11 @@ fun CoffeeCategoryRow(modifier: Modifier = Modifier) {
                     val typesFromApi = response.body() ?: emptyList()
                     val typeNames = typesFromApi.map { it.type }
                     coffeeTypes.value = listOf("Все кофе") + typeNames
+
+
+                    viewModel.coffeeTypeMapping = typesFromApi.associate { it.type to it.id }
                 }
             } catch (e: Exception) {
-                coffeeTypes.value = listOf(
-                    "Error",
-                )
             }
         }
     }
@@ -528,6 +669,15 @@ fun CoffeeCategoryRow(modifier: Modifier = Modifier) {
                     )
                     .clickable {
                         selectedItem.value = item
+
+                        if (item == "All Coffee") {
+                            selectedTypeId.value = null
+                            onCoffeeTypeSelected(null)
+                        } else {
+                            val typeId = viewModel.coffeeTypeMapping[item]
+                            selectedTypeId.value = typeId
+                            onCoffeeTypeSelected(typeId)
+                        }
                     }
             ) {
                 Text(
@@ -544,16 +694,41 @@ fun CoffeeCategoryRow(modifier: Modifier = Modifier) {
 }
 
 class HomeViewModel : ViewModel() {
-
     val coffeeImage = mutableStateOf<RegisterRequest?>(null)
     var lastQuery = ""
+    var coffeeTypeMapping = mapOf<String, Int>()
+    val allCoffee = mutableStateOf<List<CoffeeResponse>>(emptyList())
+
+    fun loadAllCoffee(token: String) {
+        viewModelScope.launch {
+            try {
+                val response = coffeeApi.getAllCoffee(token)
+                if (response.isSuccessful) {
+                    allCoffee.value = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                // Обработка ошибки
+            }
+        }
+    }
+
+    fun getFilteredCoffee(typeId: Int?): List<CoffeeResponse> {
+        return if (typeId == null) {
+            allCoffee.value
+        } else {
+            allCoffee.value.filter { it.type.id == typeId }
+        }
+    }
+
 
     fun logCoffeeTypes(token: String) {
         viewModelScope.launch {
             try {
+                Log.d("COFFEE_TYPES", "Загружаем типы кофе...")
                 val response = coffeeApi.getAllCoffeeTypes(token)
                 if (response.isSuccessful) {
                     val typesFromApi = response.body() ?: emptyList()
+                    Log.d("COFFEE_TYPES", "Получено типов: ${typesFromApi.size}")
                     typesFromApi.forEach { type ->
                         Log.d("COFFEE_TYPES", "ID: ${type.id}, Type: ${type.type}")
                     }
