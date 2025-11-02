@@ -93,9 +93,9 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
     val viewModel: HomeViewModel = viewModel()
     val prefsManager = PrefsManager(LocalContext.current)
     val token = prefsManager.getToken()
-    
+
     val selectedTypeId = remember { mutableStateOf<Int?>(null) }
-    
+
     LaunchedEffect(Unit) {
         if (token != null) {
             viewModel.loadAllCoffee(token)
@@ -255,25 +255,12 @@ fun firstHalfOfHomeScreen(viewModel: HomeViewModel = viewModel()) {
         isFocused = false
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) {
-                hideFocusAndKeyboard()
-            }
-    ) {
+
         Column(
             modifier = Modifier
                 .width(327.dp)
                 .offset(x = 24.dp, y = 135.dp)
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                }
+
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -471,10 +458,7 @@ fun firstHalfOfHomeScreen(viewModel: HomeViewModel = viewModel()) {
                                 fontSize = 16.sp
                             )
                         }
-                    }
-                }
-            }
-        }
+                    } } }
     }
 }
 
@@ -719,7 +703,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-   
+
     fun searchCoffee(query: String) {
         isSearching.value = query.isNotBlank()
 
