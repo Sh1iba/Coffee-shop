@@ -1,21 +1,10 @@
-package com.example.coffeeshop.history_search
+package com.example.coffeeshop.network.Managers
 
 import android.content.Context
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 
 class SearchHistoryManager(context: Context) {
     private val sharedPreferences = context.getSharedPreferences("search_history", Context.MODE_PRIVATE)
-    private val maxHistorySize = 10
+    private val maxHistorySize = 4
     private val historyKey = "search_history_items"
 
     fun addSearchQuery(query: String) {
@@ -23,22 +12,24 @@ class SearchHistoryManager(context: Context) {
 
         val currentHistory = getSearchHistory().toMutableList()
 
-
         currentHistory.removeAll { it.equals(query, ignoreCase = true) }
-
         currentHistory.add(0, query)
-
         if (currentHistory.size > maxHistorySize) {
             currentHistory.subList(maxHistorySize, currentHistory.size).clear()
         }
 
         sharedPreferences.edit()
-            .putStringSet(historyKey, currentHistory.toSet())
+            .putString(historyKey, currentHistory.joinToString("|||"))
             .apply()
     }
 
     fun getSearchHistory(): List<String> {
-        return sharedPreferences.getStringSet(historyKey, emptySet())?.toList() ?: emptyList()
+        val historyString = sharedPreferences.getString(historyKey, "")
+        return if (historyString.isNullOrEmpty()) {
+            emptyList()
+        } else {
+            historyString.split("|||").filter { it.isNotBlank() }
+        }
     }
 
     fun clearSearchHistory() {

@@ -51,7 +51,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.coffeeshop.R
 import com.example.coffeeshop.navigation.NavigationRoutes
-import com.example.coffeeshop.network.Preferance.PrefsManager
+import com.example.coffeeshop.network.Managers.PrefsManager
 import com.example.coffeeshop.network.api.ApiClient
 import com.example.coffeeshop.network.model.request.LoginRequest
 import com.example.coffeeshop.parser.ErrorParser

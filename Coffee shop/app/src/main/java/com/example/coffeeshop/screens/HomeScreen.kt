@@ -6,6 +6,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,13 +29,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -78,8 +75,8 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.coffeeshop.R
-import com.example.coffeeshop.history_search.SearchHistoryManager
-import com.example.coffeeshop.network.Preferance.PrefsManager
+import com.example.coffeeshop.network.Managers.SearchHistoryManager
+import com.example.coffeeshop.network.Managers.PrefsManager
 import com.example.coffeeshop.network.api.ApiClient.coffeeApi
 import com.example.coffeeshop.network.model.request.RegisterRequest
 import com.example.coffeeshop.network.model.response.CoffeeResponse
@@ -88,9 +85,6 @@ import com.example.coffeeshop.ui.theme.colorBackgroudWhite
 import com.example.coffeeshop.ui.theme.colorDarkOrange
 import com.example.coffeeshop.ui.theme.colorGrey
 import com.example.coffeeshop.ui.theme.colorGreyWhite
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
@@ -184,7 +178,7 @@ fun secondHalfOfHomeScreen(
 
 @SuppressLint("SuspiciousIndentation")
 @Composable
-fun firstHalfOfHomeScreen() {
+fun firstHalfOfHomeScreen(viewModel: HomeViewModel = viewModel()) {
     Box(
         modifier = Modifier
             .width(161.dp)
@@ -234,6 +228,7 @@ fun firstHalfOfHomeScreen() {
             }
         }
     }
+
     val context = LocalContext.current
     val searchHistoryManager = remember { SearchHistoryManager(context) }
     var searchText by rememberSaveable { mutableStateOf("") }
@@ -242,230 +237,240 @@ fun firstHalfOfHomeScreen() {
     var searchHistory by remember { mutableStateOf(searchHistoryManager.getSearchHistory()) }
     val focusManager = LocalFocusManager.current
 
-    // Track last time of user action
-    val lastActionTime = remember { mutableStateOf(System.currentTimeMillis()) }
-    // Функция для обновления истории
-    fun updateHistory() {
-        searchHistory = searchHistoryManager.getSearchHistory()
-    }
-    // Timer that triggers after 2 seconds of inactivity
     LaunchedEffect(searchText) {
-        val currentTime = System.currentTimeMillis()
-        lastActionTime.value = currentTime
-        delay(2000) // Wait for 2 seconds
-
-        if (System.currentTimeMillis() - lastActionTime.value >= 2000 && searchText.isNotBlank()) {
-            // After 2 seconds of inactivity, initiate search if text is not empty
-            searchHistoryManager.addSearchQuery(searchText)
-            updateHistory() // Update search history
-
+        if (searchText.isNotBlank()) {
+            viewModel.searchCoffee(searchText)
+        } else {
+            viewModel.searchCoffee("")
         }
     }
 
+    fun updateHistory() {
+        searchHistory = searchHistoryManager.getSearchHistory()
+    }
 
+    fun hideFocusAndKeyboard() {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+        isFocused = false
+    }
 
-    Column(
+    Box(
         modifier = Modifier
-            .width(327.dp)
-            .offset(x = 24.dp, y = 135.dp)
-    ) {
-        // Search Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Search Field
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFF2C2C2C), Color(0xFF2A2A2A))
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (isFocused) colorDarkOrange else Color.Transparent,
-                        shape = RoundedCornerShape(12.dp)
-                    )
+            .fillMaxSize()
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
             ) {
-                Row(
+                hideFocusAndKeyboard()
+            }
+    ) {
+        Column(
+            modifier = Modifier
+                .width(327.dp)
+                .offset(x = 24.dp, y = 135.dp)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                }
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .weight(1f)
+                        .height(52.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color(0xFF2C2C2C), Color(0xFF2A2A2A))
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isFocused) colorDarkOrange else Color.Transparent,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.search),
+                            contentDescription = "Search",
+                            modifier = Modifier.size(18.dp)
+                        )
+
+                        BasicTextField(
+                            value = searchText,
+                            onValueChange = {
+                                searchText = it
+                                viewModel.searchCoffee(it)
+                                if (it.isEmpty()) updateHistory()
+                            },
+                            textStyle = TextStyle(
+                                fontSize = 16.sp,
+                                color = Color.White
+                            ),
+                            singleLine = true,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 8.dp)
+                                .onFocusChanged { focusState ->
+                                    isFocused = focusState.isFocused
+                                    if (focusState.isFocused && searchText.isEmpty()) {
+                                        updateHistory()
+                                    }
+                                },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(
+                                onSearch = {
+                                    if (searchText.isNotBlank()) {
+                                        searchHistoryManager.addSearchQuery(searchText)
+                                        updateHistory()
+                                        hideFocusAndKeyboard()
+                                        viewModel.searchCoffee(searchText)
+                                    } else {
+                                        hideFocusAndKeyboard()
+                                    }
+                                }
+                            ),
+                            decorationBox = { innerTextField ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        if (searchText.isEmpty()) {
+                                            Text(
+                                                text = "Search coffee",
+                                                fontSize = 16.sp,
+                                                color = Color.Gray
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+
+                                    if (searchText.isNotEmpty()) {
+                                        IconButton(
+                                            onClick = {
+                                                searchText = ""
+                                                viewModel.searchCoffee("")
+                                                keyboardController?.hide()
+                                                updateHistory()
+                                            },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Clear",
+                                                tint = Color.Gray
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .background(colorDarkOrange, RoundedCornerShape(12.dp))
+                        .clickable {
+                            if (searchText.isNotBlank()) {
+                                searchHistoryManager.addSearchQuery(searchText)
+                                updateHistory()
+                                hideFocusAndKeyboard()
+                                viewModel.searchCoffee(searchText)
+                            } else {
+                                hideFocusAndKeyboard()
+                            }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.search),
                         contentDescription = "Search",
-                        modifier = Modifier.size(18.dp)
-                    )
-
-                    BasicTextField(
-                        value = searchText,
-                        onValueChange = {
-                            searchText = it
-                            lastActionTime.value = System.currentTimeMillis() // Update the last action time
-                            if (it.isEmpty()) updateHistory()
-                        },
-                        textStyle = TextStyle(
-                            fontSize = 16.sp,
-                            color = Color.White
-                        ),
-                        singleLine = true,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp)
-                            .onFocusChanged { focusState ->
-                                isFocused = focusState.isFocused
-                                if (focusState.isFocused && searchText.isEmpty()) {
-                                    updateHistory()
-                                }
-                            },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(
-                            onSearch = {
-                                if (searchText.isNotBlank()) {
-                                    searchHistoryManager.addSearchQuery(searchText)
-                                    updateHistory() // Явное обновление после добавления
-                                    keyboardController?.hide()
-                                    focusManager.clearFocus()
-                                    isFocused = false
-                                }
-                            }
-                        ),
-                        decorationBox = { innerTextField ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Box(modifier = Modifier.weight(1f)) {
-                                    if (searchText.isEmpty()) {
-                                        Text(
-                                            text = "Search coffee",
-                                            fontSize = 16.sp,
-                                            color = Color.Gray
-                                        )
-                                    }
-                                    innerTextField()
-                                }
-
-                                if (searchText.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = {
-                                            searchText = ""
-                                            keyboardController?.hide()
-                                            updateHistory()
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Clear",
-                                            tint = Color.Gray
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        modifier = Modifier.size(24.dp),
+                        colorFilter = ColorFilter.tint(Color.White)
                     )
                 }
             }
 
-
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .background(colorDarkOrange, RoundedCornerShape(12.dp))
-                    .clickable {
-                        if (searchText.isNotBlank()) {
-                            searchHistoryManager.addSearchQuery(searchText)
-                            updateHistory() // Явное обновление после добавления
-
-                            keyboardController?.hide()
-                            focusManager.clearFocus()
-                            isFocused = false
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-
-
-            }
-        }
-
-
-        if (isFocused && searchText.isEmpty()) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF2C2C2C),
-                tonalElevation = 4.dp
-            ) {
-                Column {
-                    if (searchHistory.isNotEmpty()) {
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    searchHistoryManager.clearSearchHistory()
-                                    updateHistory() // Явное обновление после очистки
-                                }
-                                .padding(8.dp),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            Text(
-                                text = "Clear history",
-                                color = Color.Gray,
-                                fontSize = 14.sp
-                            )
-                        }
-
-                        // History Items
-                        LazyColumn {
-                            items(searchHistory) { item ->
+            if (isFocused && searchText.isEmpty()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF2C2C2C),
+                    tonalElevation = 4.dp
+                ) {
+                    Column {
+                        if (searchHistory.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        searchHistoryManager.clearSearchHistory()
+                                        updateHistory()
+                                    }
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.End
+                            ) {
                                 Text(
-                                    text = item,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            searchText = item
-                                            searchHistoryManager.addSearchQuery(item) // Добавляем при выборе
-                                            updateHistory() // Обновляем историю
-                                            keyboardController?.hide()
-                                            focusManager.clearFocus()
-                                            isFocused = false
-                                        }
-                                        .padding(12.dp),
-                                    color = Color.White,
-                                    fontSize = 16.sp
+                                    text = "Clear history",
+                                    color = Color.Gray,
+                                    fontSize = 14.sp
                                 )
+                            }
 
-                                if (item != searchHistory.last()) {
-                                    Divider(
-                                        color = Color(0xFF3A3A3A),
-                                        thickness = 1.dp,
-                                        modifier = Modifier.padding(horizontal = 8.dp)
+                            LazyColumn {
+                                items(searchHistory) { item ->
+                                    Text(
+                                        text = item,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                searchText = item
+                                                searchHistoryManager.addSearchQuery(item)
+                                                updateHistory()
+                                                hideFocusAndKeyboard()
+                                                viewModel.searchCoffee(item)
+                                            }
+                                            .padding(12.dp),
+                                        color = Color.White,
+                                        fontSize = 16.sp
                                     )
+
+                                    if (item != searchHistory.last()) {
+                                        Divider(
+                                            color = Color(0xFF3A3A3A),
+                                            thickness = 1.dp,
+                                            modifier = Modifier.padding(horizontal = 8.dp)
+                                        )
+                                    }
                                 }
                             }
+                        } else {
+                            Text(
+                                text = "No search history",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                color = Color.Gray,
+                                fontSize = 16.sp
+                            )
                         }
-                    } else {
-                        // Empty state
-                        Text(
-                            text = "No search history",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            color = Color.Gray,
-                            fontSize = 16.sp
-                        )
                     }
                 }
             }
@@ -595,7 +600,7 @@ fun CoffeeItem(coffee: CoffeeResponse, baseUrl: String, token: String) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
                     modifier = Modifier
-                        .size(32.dp) // Немного уменьшил кнопку
+                        .size(32.dp)
                         .background(
                             color = colorDarkOrange,
                             shape = RoundedCornerShape(8.dp)
@@ -608,7 +613,7 @@ fun CoffeeItem(coffee: CoffeeResponse, baseUrl: String, token: String) {
                     Text(
                         text = "+",
                         color = Color.White,
-                        fontSize = 18.sp, // Немного уменьшил плюс
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Normal
                     )
                 }
@@ -694,10 +699,12 @@ fun CoffeeCategoryRow(
 }
 
 class HomeViewModel : ViewModel() {
-    val coffeeImage = mutableStateOf<RegisterRequest?>(null)
     var lastQuery = ""
+    val coffeeImage = mutableStateOf<RegisterRequest?>(null)
     var coffeeTypeMapping = mapOf<String, Int>()
     val allCoffee = mutableStateOf<List<CoffeeResponse>>(emptyList())
+    val searchResults = mutableStateOf<List<CoffeeResponse>>(emptyList())
+    val isSearching = mutableStateOf(false)
 
     fun loadAllCoffee(token: String) {
         viewModelScope.launch {
@@ -707,13 +714,32 @@ class HomeViewModel : ViewModel() {
                     allCoffee.value = response.body() ?: emptyList()
                 }
             } catch (e: Exception) {
-                // Обработка ошибки
+
             }
         }
     }
 
+   
+    fun searchCoffee(query: String) {
+        isSearching.value = query.isNotBlank()
+
+        if (query.isBlank()) {
+            searchResults.value = emptyList()
+            return
+        }
+
+        val filtered = allCoffee.value.filter { coffee ->
+            coffee.name.contains(query, ignoreCase = true) ||
+                    coffee.type.type.contains(query, ignoreCase = true) ||
+                    coffee.description.contains(query, ignoreCase = true)
+        }
+        searchResults.value = filtered
+    }
+
     fun getFilteredCoffee(typeId: Int?): List<CoffeeResponse> {
-        return if (typeId == null) {
+        return if (isSearching.value) {
+            searchResults.value
+        } else if (typeId == null) {
             allCoffee.value
         } else {
             allCoffee.value.filter { it.type.id == typeId }

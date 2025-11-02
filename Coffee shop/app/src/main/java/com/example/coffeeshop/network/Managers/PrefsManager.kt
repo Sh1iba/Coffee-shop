@@ -1,8 +1,6 @@
-package com.example.coffeeshop.network.Preferance
+package com.example.coffeeshop.network.Managers
 
 import android.content.Context
-import android.provider.Settings.Global.putLong
-import android.provider.Settings.Global.putString
 import android.util.Log
 
 class PrefsManager(private val context: Context) {
