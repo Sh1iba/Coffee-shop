@@ -1,6 +1,7 @@
 package com.example.coffeeshop.presentation.screens
 
 import android.annotation.SuppressLint
+import android.content.res.Configuration
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,6 +20,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -61,6 +64,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -70,6 +74,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -194,7 +199,6 @@ fun secondHalfOfHomeScreen(
 fun firstHalfOfHomeScreen(viewModel: HomeViewModel = viewModel()) {
     val context = LocalContext.current
 
-
     val locationViewModel = remember {
         LocationViewModel(
             locationManager = LocationManager(context),
@@ -203,13 +207,42 @@ fun firstHalfOfHomeScreen(viewModel: HomeViewModel = viewModel()) {
     }
     val locationState by locationViewModel.uiState.collectAsState()
 
-    // ViewModel для поиска
     val searchViewModel = remember {
         SearchViewModel(
             searchHistoryManager = SearchHistoryManager(context)
         )
     }
     val searchState by searchViewModel.uiState.collectAsState()
+
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val screenHeight = configuration.screenHeightDp.dp
+    val isTablet = screenWidth >= 600.dp
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+
+    val horizontalPadding = when {
+        isTablet && isLandscape -> 48.dp
+        isTablet -> 40.dp
+        else -> 24.dp
+    }
+
+    val topPadding = when {
+        isTablet && isLandscape -> 40.dp
+        isTablet -> 80.dp
+        else -> 68.dp
+    }
+
+    val locationWidth = when {
+        isTablet -> (screenWidth * 0.3f).coerceAtMost(200.dp)
+        else -> (screenWidth * 0.5f).coerceAtMost(161.dp)
+    }
+
+    val searchBarWidth = when {
+        isTablet -> (screenWidth * 0.7f).coerceAtMost(400.dp)
+        else -> (screenWidth - horizontalPadding * 2)
+    }
+
 
     LaunchedEffect(locationState.error) {
         locationState.error?.let { error ->
@@ -218,6 +251,7 @@ fun firstHalfOfHomeScreen(viewModel: HomeViewModel = viewModel()) {
         }
     }
 
+
     LaunchedEffect(searchState.searchText) {
         viewModel.searchCoffee(searchState.searchText)
     }
@@ -225,287 +259,308 @@ fun firstHalfOfHomeScreen(viewModel: HomeViewModel = viewModel()) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    Box(
-        modifier = Modifier
-            .width(161.dp)
-            .height(43.dp)
-            .offset(x = 24.dp, y = 68.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "Локация",
-                fontFamily = SoraFontFamily,
-                fontWeight = FontWeight.W400,
-                fontSize = 12.sp,
-                lineHeight = 14.4.sp,
-                color = colorGrey,
-                modifier = Modifier
-                    .width(75.dp)
-                    .height(14.dp)
-            )
-
-            Row(
-                modifier = Modifier
-                    .width(176.dp)
-                    .height(21.dp)
-                    .clickable {
-                        locationViewModel.onShowAddressDialogChange(true)
-                    },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = locationState.selectedAddress,
-                    fontFamily = SoraFontFamily,
-                    fontWeight = FontWeight.W600,
-                    fontSize = 14.sp,
-                    lineHeight = 21.sp,
-                    color = colorGreyWhite,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Image(
-                    painter = painterResource(id = R.drawable.img),
-                    contentDescription = "Custom Icon",
-                    modifier = Modifier
-                        .width(14.dp)
-                        .height(14.dp)
-                )
-            }
-        }
-    }
-
-    // БЛОК ПОИСКОВОЙ СТРОКИ
     Column(
         modifier = Modifier
-            .width(327.dp)
-            .offset(x = 24.dp, y = 135.dp)
+            .fillMaxWidth()
+            .padding(top = topPadding)
     ) {
+
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = horizontalPadding)
         ) {
-            // Поле поиска
-            Box(
+            Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFF2C2C2C), Color(0xFF2A2A2A))
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (searchState.isSearchFocused) colorDarkOrange else Color.Transparent,
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    .width(locationWidth)
+                    .wrapContentHeight(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Text(
+                    text = "Локация",
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W400,
+                    fontSize = if (isTablet) 14.sp else 12.sp,
+                    lineHeight = if (isTablet) 16.8.sp else 14.4.sp,
+                    color = colorGrey,
+                    modifier = Modifier.wrapContentSize()
+                )
+
                 Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
+                        .fillMaxWidth()
+                        .height(if (isTablet) 24.dp else 21.dp)
+                        .clickable {
+                            locationViewModel.onShowAddressDialogChange(true)
+                        },
                     verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = locationState.selectedAddress,
+                        fontFamily = SoraFontFamily,
+                        fontWeight = FontWeight.W600,
+                        fontSize = if (isTablet) 16.sp else 14.sp,
+                        lineHeight = if (isTablet) 24.sp else 21.sp,
+                        color = colorGreyWhite,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Image(
+                        painter = painterResource(id = R.drawable.img),
+                        contentDescription = "Custom Icon",
+                        modifier = Modifier
+                            .size(if (isTablet) 16.dp else 14.dp)
+                    )
+                }
+            }
+        }
+
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    top = if (isTablet) 32.dp else 24.dp,
+                    start = horizontalPadding,
+                    end = horizontalPadding
+                )
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(if (isTablet) 20.dp else 16.dp)
+            ) {
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(if (isTablet) 56.dp else 52.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color(0xFF2C2C2C), Color(0xFF2A2A2A))
+                            ),
+                            shape = RoundedCornerShape(if (isTablet) 14.dp else 12.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (searchState.isSearchFocused) colorDarkOrange else Color.Transparent,
+                            shape = RoundedCornerShape(if (isTablet) 14.dp else 12.dp)
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = if (isTablet) 20.dp else 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.search),
+                            contentDescription = "Search",
+                            modifier = Modifier.size(if (isTablet) 20.dp else 18.dp)
+                        )
+
+                        BasicTextField(
+                            value = searchState.searchText,
+                            onValueChange = searchViewModel::onSearchTextChange,
+                            textStyle = TextStyle(
+                                fontSize = if (isTablet) 18.sp else 16.sp,
+                                color = Color.White
+                            ),
+                            singleLine = true,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = if (isTablet) 12.dp else 8.dp)
+                                .onFocusChanged { focusState ->
+                                    searchViewModel.onSearchFocusChange(focusState.isFocused)
+                                },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(
+                                onSearch = {
+                                    searchViewModel.performSearch(viewModel::searchCoffee)
+                                    keyboardController?.hide()
+                                    focusManager.clearFocus()
+                                }
+                            ),
+                            decorationBox = { innerTextField ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        if (searchState.searchText.isEmpty()) {
+                                            Text(
+                                                text = "Search coffee",
+                                                fontSize = if (isTablet) 18.sp else 16.sp,
+                                                color = Color.Gray
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+
+                                    if (searchState.searchText.isNotEmpty()) {
+                                        IconButton(
+                                            onClick = {
+                                                searchViewModel.clearSearch()
+                                                viewModel.searchCoffee("")
+                                                keyboardController?.hide()
+                                            },
+                                            modifier = Modifier.size(if (isTablet) 28.dp else 24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Clear",
+                                                tint = Color.Gray
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+
+
+                Box(
+                    modifier = Modifier
+                        .size(if (isTablet) 56.dp else 52.dp)
+                        .background(colorDarkOrange, RoundedCornerShape(if (isTablet) 14.dp else 12.dp))
+                        .clickable {
+                            searchViewModel.performSearch(viewModel::searchCoffee)
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.search),
                         contentDescription = "Search",
-                        modifier = Modifier.size(18.dp)
-                    )
-
-                    BasicTextField(
-                        value = searchState.searchText,
-                        onValueChange = searchViewModel::onSearchTextChange,
-                        textStyle = TextStyle(
-                            fontSize = 16.sp,
-                            color = Color.White
-                        ),
-                        singleLine = true,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp)
-                            .onFocusChanged { focusState ->
-                                searchViewModel.onSearchFocusChange(focusState.isFocused)
-                            },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(
-                            onSearch = {
-                                searchViewModel.performSearch(viewModel::searchCoffee)
-                                keyboardController?.hide()
-                                focusManager.clearFocus()
-                            }
-                        ),
-                        decorationBox = { innerTextField ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Box(modifier = Modifier.weight(1f)) {
-                                    if (searchState.searchText.isEmpty()) {
-                                        Text(
-                                            text = "Search coffee",
-                                            fontSize = 16.sp,
-                                            color = Color.Gray
-                                        )
-                                    }
-                                    innerTextField()
-                                }
-
-                                if (searchState.searchText.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = {
-                                            searchViewModel.clearSearch()
-                                            viewModel.searchCoffee("")
-                                            keyboardController?.hide()
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Clear",
-                                            tint = Color.Gray
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        modifier = Modifier.size(if (isTablet) 26.dp else 24.dp),
+                        colorFilter = ColorFilter.tint(Color.White)
                     )
                 }
             }
 
-            // Кнопка поиска
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .background(colorDarkOrange, RoundedCornerShape(12.dp))
-                    .clickable {
-                        searchViewModel.performSearch(viewModel::searchCoffee)
-                        keyboardController?.hide()
-                        focusManager.clearFocus()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.search),
-                    contentDescription = "Search",
-                    modifier = Modifier.size(24.dp),
-                    colorFilter = ColorFilter.tint(Color.White)
-                )
-            }
-        }
-
-        // История поиска
-        if (searchState.isSearchFocused && searchState.searchText.isEmpty()) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF2C2C2C),
-                tonalElevation = 4.dp
-            ) {
-                Column {
-                    if (searchState.searchHistory.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { searchViewModel.clearSearchHistory() }
-                                .padding(8.dp),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            Text(
-                                text = "Clear history",
-                                color = Color.Gray,
-                                fontSize = 14.sp
-                            )
-                        }
-
-                        LazyColumn {
-                            items(searchState.searchHistory) { item ->
+            if (searchState.isSearchFocused && searchState.searchText.isEmpty()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = if (isTablet) 12.dp else 8.dp),
+                    shape = RoundedCornerShape(if (isTablet) 14.dp else 12.dp),
+                    color = Color(0xFF2C2C2C),
+                    tonalElevation = 4.dp
+                ) {
+                    Column {
+                        if (searchState.searchHistory.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { searchViewModel.clearSearchHistory() }
+                                    .padding(if (isTablet) 12.dp else 8.dp),
+                                horizontalArrangement = Arrangement.End
+                            ) {
                                 Text(
-                                    text = item,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            searchViewModel.selectSearchHistoryItem(item, viewModel::searchCoffee)
-                                            keyboardController?.hide()
-                                            focusManager.clearFocus()
-                                        }
-                                        .padding(12.dp),
-                                    color = Color.White,
-                                    fontSize = 16.sp
+                                    text = "Clear history",
+                                    color = Color.Gray,
+                                    fontSize = if (isTablet) 16.sp else 14.sp
                                 )
+                            }
 
-                                if (item != searchState.searchHistory.last()) {
-                                    Divider(
-                                        color = Color(0xFF3A3A3A),
-                                        thickness = 1.dp,
-                                        modifier = Modifier.padding(horizontal = 8.dp)
+                            LazyColumn {
+                                items(searchState.searchHistory) { item ->
+                                    Text(
+                                        text = item,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                searchViewModel.selectSearchHistoryItem(item, viewModel::searchCoffee)
+                                                keyboardController?.hide()
+                                                focusManager.clearFocus()
+                                            }
+                                            .padding(if (isTablet) 16.dp else 12.dp),
+                                        color = Color.White,
+                                        fontSize = if (isTablet) 18.sp else 16.sp
                                     )
+
+                                    if (item != searchState.searchHistory.last()) {
+                                        Divider(
+                                            color = Color(0xFF3A3A3A),
+                                            thickness = 1.dp,
+                                            modifier = Modifier.padding(horizontal = if (isTablet) 12.dp else 8.dp)
+                                        )
+                                    }
                                 }
                             }
+                        } else {
+                            Text(
+                                text = "No search history",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(if (isTablet) 16.dp else 12.dp),
+                                color = Color.Gray,
+                                fontSize = if (isTablet) 18.sp else 16.sp
+                            )
                         }
-                    } else {
-                        Text(
-                            text = "No search history",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            color = Color.Gray,
-                            fontSize = 16.sp
-                        )
                     }
                 }
             }
         }
     }
 
-    // ДИАЛОГ ВЫБОРА АДРЕСА (ВЫНЕСЕН В ОТДЕЛЬНЫЙ COMPOSABLE)
+
     if (locationState.showAddressDialog) {
-        AddressSelectionDialog(
+        AdaptiveAddressSelectionDialog(
             currentAddress = locationState.selectedAddress,
             searchQuery = locationState.addressSearchQuery,
             onSearchQueryChange = locationViewModel::onAddressSearchQueryChange,
             searchResults = locationState.addressSearchResults,
             isLoading = locationState.isAddressLoading,
             onAddressSelected = locationViewModel::onAddressSelected,
-            onDismiss = { locationViewModel.onShowAddressDialogChange(false) }
+            onDismiss = { locationViewModel.onShowAddressDialogChange(false) },
+            isTablet = isTablet,
+            screenHeight = screenHeight
         )
     }
 }
 
-// ОТДЕЛЬНЫЙ COMPOSABLE ДЛЯ ДИАЛОГА ВЫБОРА АДРЕСА
+
 @Composable
-fun AddressSelectionDialog(
+fun AdaptiveAddressSelectionDialog(
     currentAddress: String,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     searchResults: List<NominatimAddress>,
     isLoading: Boolean,
     onAddressSelected: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    isTablet: Boolean,
+    screenHeight: Dp
 ) {
+    val dialogWidth = when {
+        isTablet -> (screenHeight * 0.6f).coerceAtMost(500.dp)
+        else -> (screenHeight * 0.8f).coerceAtMost(400.dp)
+    }
+
+    val dialogHeight = when {
+        isTablet -> (screenHeight * 0.7f).coerceAtMost(600.dp)
+        else -> (screenHeight * 0.6f).coerceAtMost(500.dp)
+    }
+
     Dialog(
         onDismissRequest = onDismiss
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(500.dp),
-            shape = RoundedCornerShape(12.dp),
+                .width(dialogWidth)
+                .height(dialogHeight),
+            shape = RoundedCornerShape(if (isTablet) 16.dp else 12.dp),
             color = Color(0xFF2C2C2C)
         ) {
             Column(
                 modifier = Modifier
-                    .padding(16.dp)
+                    .padding(if (isTablet) 20.dp else 16.dp)
             ) {
-                // Заголовок
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -515,13 +570,13 @@ fun AddressSelectionDialog(
                         text = "Выберите город",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.W600,
-                        fontSize = 18.sp,
+                        fontSize = if (isTablet) 20.sp else 18.sp,
                         color = Color.White
                     )
 
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(if (isTablet) 28.dp else 24.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
@@ -531,38 +586,37 @@ fun AddressSelectionDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(if (isTablet) 20.dp else 16.dp))
 
-                // Поле поиска адреса
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(if (isTablet) 56.dp else 52.dp)
                         .background(
                             color = Color(0xFF3A3A3A),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(if (isTablet) 10.dp else 8.dp)
                         )
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp),
+                            .padding(horizontal = if (isTablet) 20.dp else 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
                             tint = Color.Gray,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(if (isTablet) 22.dp else 20.dp)
                         )
 
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(if (isTablet) 14.dp else 12.dp))
 
                         BasicTextField(
                             value = searchQuery,
                             onValueChange = onSearchQueryChange,
                             textStyle = TextStyle(
-                                fontSize = 16.sp,
+                                fontSize = if (isTablet) 18.sp else 16.sp,
                                 color = Color.White,
                                 fontFamily = SoraFontFamily
                             ),
@@ -573,7 +627,7 @@ fun AddressSelectionDialog(
                                     if (searchQuery.isEmpty()) {
                                         Text(
                                             text = "Поиск города...",
-                                            fontSize = 16.sp,
+                                            fontSize = if (isTablet) 18.sp else 16.sp,
                                             color = Color.Gray,
                                             fontFamily = SoraFontFamily
                                         )
@@ -586,14 +640,14 @@ fun AddressSelectionDialog(
                         if (searchQuery.isNotEmpty()) {
                             if (isLoading) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(if (isTablet) 22.dp else 20.dp),
                                     strokeWidth = 2.dp,
                                     color = colorDarkOrange
                                 )
                             } else {
                                 IconButton(
                                     onClick = { onSearchQueryChange("") },
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(if (isTablet) 22.dp else 20.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
@@ -606,9 +660,8 @@ fun AddressSelectionDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(if (isTablet) 20.dp else 16.dp))
 
-                // Список адресов
                 LazyColumn(
                     modifier = Modifier.weight(1f)
                 ) {
@@ -618,7 +671,7 @@ fun AddressSelectionDialog(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(if (isTablet) 20.dp else 16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     CircularProgressIndicator(color = colorDarkOrange)
@@ -626,10 +679,11 @@ fun AddressSelectionDialog(
                             }
                         } else if (searchResults.isNotEmpty()) {
                             items(searchResults) { address ->
-                                AddressItem(
+                                AdaptiveAddressItem(
                                     address = address.display_name,
                                     isSelected = address.display_name == currentAddress,
-                                    onClick = { onAddressSelected(address.display_name) }
+                                    onClick = { onAddressSelected(address.display_name) },
+                                    isTablet = isTablet
                                 )
                             }
                         } else {
@@ -637,11 +691,11 @@ fun AddressSelectionDialog(
                                 Text(
                                     text = "Городов по запросу \"$searchQuery\" не найдено",
                                     fontFamily = SoraFontFamily,
-                                    fontSize = 14.sp,
+                                    fontSize = if (isTablet) 16.sp else 14.sp,
                                     color = Color.Gray,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp)
+                                        .padding(if (isTablet) 20.dp else 16.dp)
                                         .wrapContentWidth()
                                 )
                             }
@@ -651,11 +705,11 @@ fun AddressSelectionDialog(
                             Text(
                                 text = "Введите 2+ символа для поиска",
                                 fontFamily = SoraFontFamily,
-                                fontSize = 14.sp,
+                                fontSize = if (isTablet) 16.sp else 14.sp,
                                 color = Color.Gray,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp)
+                                    .padding(if (isTablet) 20.dp else 16.dp)
                                     .wrapContentWidth()
                             )
                         }
@@ -666,44 +720,45 @@ fun AddressSelectionDialog(
     }
 }
 
-// ОТДЕЛЬНЫЙ COMPOSABLE ДЛЯ ЭЛЕМЕНТА АДРЕСА
+
 @Composable
-fun AddressItem(
+fun AdaptiveAddressItem(
     address: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isTablet: Boolean
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .padding(vertical = if (isTablet) 14.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Default.LocationOn,
             contentDescription = "Location",
             tint = colorDarkOrange,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(if (isTablet) 22.dp else 20.dp)
         )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(if (isTablet) 14.dp else 12.dp))
 
         Text(
             text = address,
             fontFamily = SoraFontFamily,
-            fontSize = 14.sp,
+            fontSize = if (isTablet) 16.sp else 14.sp,
             color = if (isSelected) colorDarkOrange else Color.White,
             modifier = Modifier.weight(1f)
         )
 
         if (isSelected) {
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(if (isTablet) 10.dp else 8.dp))
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Selected",
                 tint = colorDarkOrange,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(if (isTablet) 18.dp else 16.dp)
             )
         }
     }
