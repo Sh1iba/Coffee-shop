@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -91,15 +92,18 @@ import com.example.coffeeshop.data.repository.AddressRepository
 import com.example.coffeeshop.data.managers.LocationManager
 import com.example.coffeeshop.data.remote.response.NominatimAddress
 import com.example.coffeeshop.data.managers.SearchHistoryManager
+import com.example.coffeeshop.data.remote.api.ApiClient
 
 import com.example.coffeeshop.data.remote.api.ApiClient.coffeeApi
 import com.example.coffeeshop.domain.RegisterRequest
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
+import com.example.coffeeshop.data.repository.CoffeeRepository
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
 import com.example.coffeeshop.presentation.theme.colorBackgroudWhite
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.theme.colorGrey
 import com.example.coffeeshop.presentation.theme.colorGreyWhite
+import com.example.coffeeshop.presentation.viewmodel.HomeViewModel
 import com.example.coffeeshop.presentation.viewmodel.LocationViewModel
 import com.example.coffeeshop.presentation.viewmodel.SearchViewModel
 import kotlinx.coroutines.launch
@@ -107,7 +111,15 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(navController: NavHostController = rememberNavController()) {
-    val viewModel: HomeViewModel = viewModel()
+    val viewModel: HomeViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return HomeViewModel(
+                    repository = CoffeeRepository(ApiClient.coffeeApi)
+                ) as T
+            }
+        }
+    )
     val prefsManager = PrefsManager(LocalContext.current)
     val token = prefsManager.getToken()
 
@@ -115,7 +127,7 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
 
     LaunchedEffect(Unit) {
         if (token != null) {
-            viewModel.loadAllCoffee(token)
+            viewModel.loadCoffeeData(token)
         }
     }
 
@@ -147,8 +159,7 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
                 .offset(x = 24.dp, y = 211.dp),
             contentScale = ContentScale.Crop
         )
-        firstHalfOfHomeScreen()
-
+        firstHalfOfHomeScreen(viewModel = viewModel)
     }
 }
 
@@ -157,6 +168,29 @@ fun secondHalfOfHomeScreen(
     selectedTypeId: MutableState<Int?>,
     viewModel: HomeViewModel
 ) {
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    val isTablet = configuration.screenWidthDp >= 600
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    val contentHeight = when {
+        isTablet && isLandscape -> screenHeight * 0.7f
+        isTablet -> screenHeight * 0.65f
+        else -> 600.dp
+    }
+
+    val contentOffset = when {
+        isTablet && isLandscape -> screenHeight * 0.25f
+        isTablet -> screenHeight * 0.3f
+        else -> 375.dp
+    }
+
+    val horizontalPadding = if (isTablet) 48.dp else 24.dp
+    val bottomSpacing = if (isTablet) 60.dp else 46.dp
+    val rowBottomPadding = if (isTablet) 24.dp else 16.dp
+
+    val homeState by viewModel.uiState.collectAsState()
+
     Scaffold(
         bottomBar = {
             BottomMenu()
@@ -165,29 +199,35 @@ fun secondHalfOfHomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(600.dp)
-                .offset(y = 375.dp)
+                .height(contentHeight)
+                .offset(y = contentOffset)
                 .padding(innerPadding)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = horizontalPadding)
             ) {
                 CoffeeCategoryRow(
                     onCoffeeTypeSelected = { typeId ->
-                        selectedTypeId.value = typeId
+                        val typeName = if (typeId == null) {
+                            "Все кофе"
+                        } else {
+                            homeState.coffeeTypeMapping.entries.find { it.value == typeId }?.key ?: "Все кофе"
+                        }
+                        viewModel.onCoffeeTypeSelected(typeName)
                     },
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = rowBottomPadding)
                 )
 
                 CoffeeCategoryColumn(
-                    coffeeList = viewModel.getFilteredCoffee(selectedTypeId.value),
+                    coffeeList = homeState.filteredCoffee,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                 )
-                Spacer(modifier = Modifier.height(46.dp))
+
+                Spacer(modifier = Modifier.height(bottomSpacing))
             }
         }
     }
@@ -196,7 +236,7 @@ fun secondHalfOfHomeScreen(
 
 @SuppressLint("SuspiciousIndentation")
 @Composable
-fun firstHalfOfHomeScreen(viewModel: HomeViewModel = viewModel()) {
+fun firstHalfOfHomeScreen(viewModel: HomeViewModel) {
     val context = LocalContext.current
 
     val locationViewModel = remember {
@@ -219,7 +259,6 @@ fun firstHalfOfHomeScreen(viewModel: HomeViewModel = viewModel()) {
     val screenHeight = configuration.screenHeightDp.dp
     val isTablet = screenWidth >= 600.dp
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
 
     val horizontalPadding = when {
         isTablet && isLandscape -> 48.dp
@@ -510,7 +549,7 @@ fun firstHalfOfHomeScreen(viewModel: HomeViewModel = viewModel()) {
 
 
     if (locationState.showAddressDialog) {
-        AdaptiveAddressSelectionDialog(
+        AddressSelectionDialog(
             currentAddress = locationState.selectedAddress,
             searchQuery = locationState.addressSearchQuery,
             onSearchQueryChange = locationViewModel::onAddressSearchQueryChange,
@@ -526,7 +565,7 @@ fun firstHalfOfHomeScreen(viewModel: HomeViewModel = viewModel()) {
 
 
 @Composable
-fun AdaptiveAddressSelectionDialog(
+fun AddressSelectionDialog(
     currentAddress: String,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
@@ -679,7 +718,7 @@ fun AdaptiveAddressSelectionDialog(
                             }
                         } else if (searchResults.isNotEmpty()) {
                             items(searchResults) { address ->
-                                AdaptiveAddressItem(
+                                AddressItem(
                                     address = address.display_name,
                                     isSelected = address.display_name == currentAddress,
                                     onClick = { onAddressSelected(address.display_name) },
@@ -722,7 +761,7 @@ fun AdaptiveAddressSelectionDialog(
 
 
 @Composable
-fun AdaptiveAddressItem(
+fun AddressItem(
     address: String,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -775,6 +814,60 @@ data class BottomMenuItem(
     val icon: Int,
     val selectedIndicator: Int
 )
+
+@Composable
+fun CoffeeCategoryRow(
+    onCoffeeTypeSelected: (Int?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val viewModel: HomeViewModel = viewModel()
+    val homeState by viewModel.uiState.collectAsState()
+
+    val selectedItem = remember { mutableStateOf("Все кофе") }
+    val isTablet = LocalConfiguration.current.screenWidthDp >= 600
+    val fontSize = if (isTablet) 15.sp else 14.sp
+
+    LazyRow(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(end = 8.dp)
+    ) {
+        items(homeState.coffeeTypes) { item ->
+            Box(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .background(
+                        color = if (item == selectedItem.value) colorDarkOrange else Color(0xFFF5F5F5),
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .padding(
+                        top = 4.dp,
+                        bottom = 4.dp,
+                        start = 8.dp,
+                        end = 8.dp
+                    )
+                    .clickable {
+                        selectedItem.value = item
+
+                        if (item == "Все кофе") {
+                            onCoffeeTypeSelected(null)
+                        } else {
+                            val typeId = homeState.coffeeTypeMapping[item]
+                            onCoffeeTypeSelected(typeId)
+                        }
+                    }
+            ) {
+                Text(
+                    text = item,
+                    fontFamily = SoraFontFamily,
+                    fontWeight = if (item == selectedItem.value) FontWeight.W600 else FontWeight.W400,
+                    fontSize = fontSize,
+                    lineHeight = 21.sp,
+                    color = if (item == selectedItem.value) Color.White else Color(0xFF313131),
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun CoffeeCategoryColumn(
@@ -888,7 +981,7 @@ fun CoffeeItem(coffee: CoffeeResponse, baseUrl: String, token: String) {
                     fontSize = 18.sp,
                     color = Color(0xFF2F2D2C)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+
                 Box(
                     modifier = Modifier
                         .size(32.dp)
@@ -897,7 +990,7 @@ fun CoffeeItem(coffee: CoffeeResponse, baseUrl: String, token: String) {
                             shape = RoundedCornerShape(8.dp)
                         )
                         .clickable {
-                            // TODO: Добавить логику добавления в корзину
+
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -908,152 +1001,6 @@ fun CoffeeItem(coffee: CoffeeResponse, baseUrl: String, token: String) {
                         fontWeight = FontWeight.Normal
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-        }
-    }
-}
-
-
-@Composable
-fun CoffeeCategoryRow(
-    onCoffeeTypeSelected: (Int?) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val viewModel: HomeViewModel = viewModel()
-    val prefsManager = PrefsManager(LocalContext.current)
-    val token = prefsManager.getToken()
-
-    val coffeeTypes = remember { mutableStateOf(listOf("Все кофе")) }
-    val selectedItem = remember { mutableStateOf("Все кофе") }
-    val selectedTypeId = remember { mutableStateOf<Int?>(null) }
-
-    LaunchedEffect(token) {
-        if (token != null && coffeeTypes.value.size == 1) {
-            try {
-                val response = coffeeApi.getAllCoffeeTypes(token)
-                if (response.isSuccessful) {
-                    val typesFromApi = response.body() ?: emptyList()
-                    val typeNames = typesFromApi.map { it.type }
-                    coffeeTypes.value = listOf("Все кофе") + typeNames
-
-
-                    viewModel.coffeeTypeMapping = typesFromApi.associate { it.type to it.id }
-                }
-            } catch (e: Exception) {
-            }
-        }
-    }
-
-    LazyRow(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(end = 8.dp)
-    ) {
-        items(coffeeTypes.value) { item ->
-            Box(
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .background(
-                        color = if (item == selectedItem.value) colorDarkOrange else Color(0xFFF5F5F5),
-                        shape = RoundedCornerShape(6.dp)
-                    )
-                    .padding(
-                        top = 4.dp,
-                        bottom = 4.dp,
-                        start = 8.dp,
-                        end = 8.dp
-                    )
-                    .clickable {
-                        selectedItem.value = item
-
-                        if (item == "All Coffee") {
-                            selectedTypeId.value = null
-                            onCoffeeTypeSelected(null)
-                        } else {
-                            val typeId = viewModel.coffeeTypeMapping[item]
-                            selectedTypeId.value = typeId
-                            onCoffeeTypeSelected(typeId)
-                        }
-                    }
-            ) {
-                Text(
-                    text = item,
-                    fontFamily = SoraFontFamily,
-                    fontWeight = if (item == selectedItem.value) FontWeight.W600 else FontWeight.W400,
-                    fontSize = 14.sp,
-                    lineHeight = 21.sp,
-                    color = if (item == selectedItem.value) Color.White else Color(0xFF313131),
-                )
-            }
-        }
-    }
-}
-
-class HomeViewModel : ViewModel() {
-    var lastQuery = ""
-    val coffeeImage = mutableStateOf<RegisterRequest?>(null)
-    var coffeeTypeMapping = mapOf<String, Int>()
-    val allCoffee = mutableStateOf<List<CoffeeResponse>>(emptyList())
-    val searchResults = mutableStateOf<List<CoffeeResponse>>(emptyList())
-    val isSearching = mutableStateOf(false)
-
-    fun loadAllCoffee(token: String) {
-        viewModelScope.launch {
-            try {
-                val response = coffeeApi.getAllCoffee(token)
-                if (response.isSuccessful) {
-                    allCoffee.value = response.body() ?: emptyList()
-                }
-            } catch (e: Exception) {
-
-            }
-        }
-    }
-
-
-    fun searchCoffee(query: String) {
-        isSearching.value = query.isNotBlank()
-
-        if (query.isBlank()) {
-            searchResults.value = emptyList()
-            return
-        }
-
-        val filtered = allCoffee.value.filter { coffee ->
-            coffee.name.contains(query, ignoreCase = true) ||
-                    coffee.type.type.contains(query, ignoreCase = true) ||
-                    coffee.description.contains(query, ignoreCase = true)
-        }
-        searchResults.value = filtered
-    }
-
-    fun getFilteredCoffee(typeId: Int?): List<CoffeeResponse> {
-        return if (isSearching.value) {
-            searchResults.value
-        } else if (typeId == null) {
-            allCoffee.value
-        } else {
-            allCoffee.value.filter { it.type.id == typeId }
-        }
-    }
-
-
-    fun logCoffeeTypes(token: String) {
-        viewModelScope.launch {
-            try {
-                Log.d("COFFEE_TYPES", "Загружаем типы кофе...")
-                val response = coffeeApi.getAllCoffeeTypes(token)
-                if (response.isSuccessful) {
-                    val typesFromApi = response.body() ?: emptyList()
-                    Log.d("COFFEE_TYPES", "Получено типов: ${typesFromApi.size}")
-                    typesFromApi.forEach { type ->
-                        Log.d("COFFEE_TYPES", "ID: ${type.id}, Type: ${type.type}")
-                    }
-                } else {
-                    Log.e("COFFEE_TYPES", "Ошибка: ${response.code()}")
-                }
-            } catch (e: Exception) {
-                Log.e("COFFEE_TYPES", "Ошибка сети: ${e.message}")
             }
         }
     }
@@ -1061,17 +1008,25 @@ class HomeViewModel : ViewModel() {
 
 @Composable
 fun BottomMenuIcon(item: BottomMenuItem, isSelected: Boolean, onClick: () -> Unit) {
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
+
+    val iconSize = if (isTablet) 28.dp else 24.dp
+    val indicatorSize = if (isTablet) 10.dp else 8.dp
+    val horizontalPadding = if (isTablet) 12.dp else 8.dp
+    val topPadding = if (isTablet) 6.dp else 4.dp
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = horizontalPadding)
             .clickable { onClick() }
     ) {
         Image(
             painter = painterResource(id = item.icon),
             contentDescription = item.label,
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(iconSize),
             colorFilter = if (isSelected) {
                 ColorFilter.tint(Color(0xFFC67C4E))
             } else {
@@ -1083,8 +1038,9 @@ fun BottomMenuIcon(item: BottomMenuItem, isSelected: Boolean, onClick: () -> Uni
             Image(
                 painter = painterResource(id = item.selectedIndicator),
                 contentDescription = "Selected indicator",
-                modifier = Modifier.size(8.dp)
-                    .padding(top = 4.dp)
+                modifier = Modifier
+                    .size(indicatorSize)
+                    .padding(top = topPadding)
             )
         }
     }
@@ -1101,19 +1057,31 @@ fun BottomMenu() {
 
     val selectedItem = remember { mutableStateOf(menuItems[0].label) }
 
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
+    val screenWidth = configuration.screenWidthDp.dp
+
+    val bottomBarHeight = if (isTablet) 110.dp else 99.dp
+    val horizontalPadding = if (isTablet) 48.dp else 24.dp
+    val verticalPadding = if (isTablet) 20.dp else 24.dp
+    val cornerRadius = if (isTablet) 28.dp else 24.dp
+
     BottomAppBar(
         modifier = Modifier
             .fillMaxWidth()
-            .height(99.dp)
+            .height(bottomBarHeight)
             .background(
                 color = Color.White,
                 shape = RoundedCornerShape(
-                    topStart = 24.dp,
-                    topEnd = 24.dp
+                    topStart = cornerRadius,
+                    topEnd = cornerRadius
                 )
             ),
         containerColor = Color.White,
-        contentPadding = PaddingValues(24.dp)
+        contentPadding = PaddingValues(
+            horizontal = horizontalPadding,
+            vertical = verticalPadding
+        )
     ) {
         Row(
             modifier = Modifier
