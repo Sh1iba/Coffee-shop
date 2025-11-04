@@ -1,5 +1,6 @@
 package com.example.coffeeshop
 
+import FavoriteCoffeeScreen
 import com.example.coffeeshop.data.managers.PrefsManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,7 +30,7 @@ class MainActivity : ComponentActivity() {
             prefsManager.setFirstLaunchCompleted()
             NavigationRoutes.ONBOARDING
         } else if (prefsManager.isLoggedIn()) {
-            NavigationRoutes.HOME
+            NavigationRoutes.FAVORITE
         } else {
             NavigationRoutes.SIGN_IN
         }
@@ -81,6 +82,9 @@ class MainActivity : ComponentActivity() {
                         )
 
                         CoffeeDetailScreen(navController = navController, coffee = coffee)
+                    }
+                    composable(NavigationRoutes.FAVORITE) {
+                        FavoriteCoffeeScreen(navController)
                     }
                 }
             }
