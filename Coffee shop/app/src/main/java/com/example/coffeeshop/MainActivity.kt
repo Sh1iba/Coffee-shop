@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.coffeeshop.navigation.NavigationRoutes
+import com.example.coffeeshop.presentation.screens.CoffeeDetailScreen
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.ui.screens.OnboardingScreen
 import com.example.coffeeshop.presentation.screens.HomeScreen
@@ -24,7 +25,7 @@ class MainActivity : ComponentActivity() {
             prefsManager.setFirstLaunchCompleted()
             NavigationRoutes.ONBOARDING
         } else if (prefsManager.isLoggedIn()) {
-            NavigationRoutes.HOME
+            NavigationRoutes.DETAIL
         } else {
             NavigationRoutes.SIGN_IN
         }
@@ -47,6 +48,9 @@ class MainActivity : ComponentActivity() {
                     }
                     composable(NavigationRoutes.SIGN_IN) {
                         SignInScreen(navController)
+                    }
+                    composable(NavigationRoutes.DETAIL) {
+                        CoffeeDetailScreen(navController)
                     }
                 }
             }

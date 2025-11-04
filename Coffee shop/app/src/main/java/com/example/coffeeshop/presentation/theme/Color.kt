@@ -22,3 +22,5 @@ val colorLightRecGrey = Color(0xFFEDEDED)
 val colorDarkOrange = Color(0xFFC67C4E)
 val colorGrey = Color(0xFFA2A2A2)
 val colorGreyWhite = Color(0xFFD8D8D8)
+
+val colorSelectOrange = Color(0xFFf9f2ed)
