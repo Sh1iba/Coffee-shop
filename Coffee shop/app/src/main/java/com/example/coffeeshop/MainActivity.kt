@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
             prefsManager.setFirstLaunchCompleted()
             NavigationRoutes.ONBOARDING
         } else if (prefsManager.isLoggedIn()) {
-            NavigationRoutes.FAVORITE
+            NavigationRoutes.HOME
         } else {
             NavigationRoutes.SIGN_IN
         }

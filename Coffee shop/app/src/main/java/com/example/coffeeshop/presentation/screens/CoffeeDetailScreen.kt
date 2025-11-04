@@ -84,28 +84,29 @@ fun CoffeeDetailScreen(
     navController: NavController,
     coffee: CoffeeResponse
 ) {
+    val prefsManager = PrefsManager(LocalContext.current)
+
     val viewModel: CoffeeDetailViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return CoffeeDetailViewModel(
-                    repository = CoffeeRepository(ApiClient.coffeeApi)
+                    repository = CoffeeRepository(ApiClient.coffeeApi),
+                    prefsManager = prefsManager
                 ) as T
             }
         }
     )
-
-    val prefsManager = PrefsManager(LocalContext.current)
-    val token = prefsManager.getToken() ?: ""
 
     val currentCoffee by viewModel.coffee.collectAsState()
     val isFavorite by viewModel.isFavorite.collectAsState()
     val imageBytes by viewModel.imageBytes.collectAsState()
     val selectedSize by viewModel.selectedSize.collectAsState()
     val currentPrice by viewModel.currentPrice.collectAsState()
-    
+    val isLoading by viewModel.isLoading.collectAsState()
+
     LaunchedEffect(coffee) {
         viewModel.setCoffee(coffee)
-        viewModel.loadCoffeeImage(token)
+        viewModel.loadCoffeeImage()
     }
 
     val onBackClick = { navController.popBackStack() }
@@ -174,9 +175,7 @@ fun CoffeeDetailScreen(
                             painter = painterResource(id = com.example.coffeeshop.R.drawable.heart),
                             contentDescription = "Favorite",
                             modifier = Modifier.size(24.dp),
-                            colorFilter = ColorFilter.tint(
-                                Color(0xFF242424)
-                            )
+                            colorFilter = ColorFilter.tint(Color(0xFF242424))
                         )
                     }
                 }
