@@ -25,4 +25,18 @@ class CoffeeRepository(
             emptyList()
         }
     }
+
+    suspend fun getCoffeeImage(imageName: String, token: String): ByteArray? {
+        return try {
+            val response = apiService.getCoffeeImage(imageName, token)
+            if (response.isSuccessful) {
+                response.body()?.bytes()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }

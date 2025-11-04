@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -34,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -56,11 +59,19 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import com.example.coffeeshop.data.managers.PrefsManager
+import com.example.coffeeshop.data.remote.api.ApiClient
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
+import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.theme.colorFoundationGrey
@@ -71,29 +82,33 @@ import com.example.coffeeshop.presentation.viewmodel.CoffeeDetailViewModel
 @Composable
 fun CoffeeDetailScreen(
     navController: NavController,
-    viewModel: CoffeeDetailViewModel? = null
+    coffee: CoffeeResponse
 ) {
-    val coffee = remember {
-        CoffeeResponse(
-            id = 2,
-            type = CoffeeTypeResponse(2, "Latte"),
-            name = "Caffe Mocha",
-            description = "Sweet caramel coffee with smooth milk and rich espresso.",
-            price = 5.25f,
-            imageName = "mocha.jpg"
-        )
+    val viewModel: CoffeeDetailViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return CoffeeDetailViewModel(
+                    repository = CoffeeRepository(ApiClient.coffeeApi)
+                ) as T
+            }
+        }
+    )
+
+    val prefsManager = PrefsManager(LocalContext.current)
+    val token = prefsManager.getToken() ?: ""
+
+    val currentCoffee by viewModel.coffee.collectAsState()
+    val isFavorite by viewModel.isFavorite.collectAsState()
+    val imageBytes by viewModel.imageBytes.collectAsState()
+    val selectedSize by viewModel.selectedSize.collectAsState()
+    val currentPrice by viewModel.currentPrice.collectAsState()
+    
+    LaunchedEffect(coffee) {
+        viewModel.setCoffee(coffee)
+        viewModel.loadCoffeeImage(token)
     }
 
     val onBackClick = { navController.popBackStack() }
-
-    val localIsFavorite = remember { mutableStateOf(false) }
-    val isFavorite = if (viewModel != null) {
-        viewModel.isFavorite.collectAsState().value
-    } else {
-        localIsFavorite.value
-    }
-
-    var selectedSize by remember { mutableStateOf("M") }
 
     Column(
         modifier = Modifier
@@ -137,17 +152,13 @@ fun CoffeeDetailScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center
                 )
-
+                
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .clickable {
-                            if (viewModel != null) {
-                                viewModel.toggleFavorite()
-                            } else {
-                                localIsFavorite.value = !localIsFavorite.value
-                            }
+                            viewModel.toggleFavorite()
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -171,27 +182,50 @@ fun CoffeeDetailScreen(
                 }
             }
         }
-
+        
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
                 .padding(top = 24.dp)
-
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(327f / 202f)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Gray)
+                    .background(Color(0xFF727070))
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFF727070)),
-                    contentAlignment = Alignment.Center
-                ) {
+                if (imageBytes != null) {
+                    Image(
+                        painter = rememberAsyncImagePainter(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(imageBytes)
+                                .build()
+                        ),
+                        contentDescription = currentCoffee?.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = currentCoffee?.name ?: coffee.name,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            CircularProgressIndicator(color = Color.White)
+                        }
+                    }
                 }
             }
         }
@@ -206,7 +240,7 @@ fun CoffeeDetailScreen(
         ) {
             Column {
                 Text(
-                    text = "Caffe Mocha",
+                    text = currentCoffee?.name ?: coffee.name,
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.W600,
                     fontSize = 20.sp,
@@ -214,7 +248,7 @@ fun CoffeeDetailScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
-                    text = "Ice/Hot",
+                    text = currentCoffee?.type?.type ?: coffee.type.type,
                     fontWeight = FontWeight.W400,
                     fontSize = 12.sp,
                     lineHeight = 14.4.sp,
@@ -245,10 +279,10 @@ fun CoffeeDetailScreen(
                     color = colorLightGrey
                 )
             }
+
             Box(
                 modifier = Modifier.height(85.dp),
                 contentAlignment = Alignment.CenterEnd
-
             ) {
                 Row(
                     modifier = Modifier
@@ -256,10 +290,9 @@ fun CoffeeDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-
                     Image(
                         painter = painterResource(id = com.example.coffeeshop.R.drawable.fast_delivery),
-                        contentDescription = "Image 1",
+                        contentDescription = "Fast Delivery",
                         modifier = Modifier
                             .size(44.dp)
                             .clip(RoundedCornerShape(8.dp))
@@ -267,7 +300,7 @@ fun CoffeeDetailScreen(
 
                     Image(
                         painter = painterResource(id = com.example.coffeeshop.R.drawable.quality_bean),
-                        contentDescription = "Image 2",
+                        contentDescription = "Quality Bean",
                         modifier = Modifier
                             .size(44.dp)
                             .clip(RoundedCornerShape(8.dp))
@@ -275,15 +308,13 @@ fun CoffeeDetailScreen(
 
                     Image(
                         painter = painterResource(id = com.example.coffeeshop.R.drawable.extra_milk),
-                        contentDescription = "Image 3",
+                        contentDescription = "Extra Milk",
                         modifier = Modifier
                             .size(44.dp)
                             .clip(RoundedCornerShape(8.dp))
                     )
                 }
-
             }
-
         }
 
         Spacer(modifier = Modifier.height(5.dp))
@@ -313,7 +344,7 @@ fun CoffeeDetailScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = coffee.description,
+                text = currentCoffee?.description ?: coffee.description,
                 fontSize = 14.sp,
                 lineHeight = 24.sp,
                 color = colorLightGrey
@@ -338,19 +369,19 @@ fun CoffeeDetailScreen(
                 SizeOption(
                     size = "S",
                     isSelected = selectedSize == "S",
-                    onClick = { selectedSize = "S" }
+                    onClick = { viewModel.selectSize("S") }
                 )
 
                 SizeOption(
                     size = "M",
                     isSelected = selectedSize == "M",
-                    onClick = { selectedSize = "M" }
+                    onClick = { viewModel.selectSize("M") }
                 )
 
                 SizeOption(
                     size = "L",
                     isSelected = selectedSize == "L",
-                    onClick = { selectedSize = "L" }
+                    onClick = { viewModel.selectSize("L") }
                 )
             }
         }
@@ -358,18 +389,14 @@ fun CoffeeDetailScreen(
         Spacer(modifier = Modifier.weight(1f))
 
         BottomOrderPanel(
-            price = when (selectedSize) {
-                "S" -> "$3.99"
-                "M" -> "$4.99"
-                "L" -> "$5.99"
-                else -> "$4.99"
-            },
+            price = currentPrice,
             onBuyNowClick = {
-
             }
         )
     }
 }
+
+
 
 @Composable
 fun SizeOption(
@@ -479,14 +506,25 @@ fun BottomOrderPanel(
     }
 }
 
-@Preview(showBackground = true, name = "With Favorite")
+@Preview(showBackground = true, name = "Coffee Detail Screen")
 @Composable
-fun CoffeeDetailScreenWithFavoritePreview() {
-    MaterialTheme {
-        val navController = rememberNavController()
+fun CoffeeDetailScreenPreview() {
+    CoffeeShopTheme {
+        val mockCoffee = CoffeeResponse(
+            id = 1,
+            type = CoffeeTypeResponse(1, "Cappuccino"),
+            name = "Classic Cappuccino",
+            description = "Traditional Italian coffee drink prepared with espresso, hot milk, and steamed milk foam. Perfect balance of coffee and milk with a rich, creamy texture.",
+            price = 4.50f,
+            imageName = "cappuccino.jpg"
+        )
+
         CoffeeDetailScreen(
-            navController = navController
+            navController = rememberNavController(),
+            coffee = mockCoffee
         )
     }
 }
+
+
 

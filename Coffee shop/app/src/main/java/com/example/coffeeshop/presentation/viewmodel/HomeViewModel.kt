@@ -1,13 +1,12 @@
 package com.example.coffeeshop.presentation.viewmodel
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.data.remote.api.ApiClient
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.repository.CoffeeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +22,9 @@ class HomeViewModel(
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    private val _imageCache = mutableStateMapOf<String, ByteArray?>()
+    val imageCache: Map<String, ByteArray?> get() = _imageCache
 
     fun loadCoffeeData(token: String) {
         viewModelScope.launch {
@@ -41,9 +43,35 @@ class HomeViewModel(
                         coffeeTypeMapping = typeMapping
                     )
                 }
+
+                loadCoffeeImages(coffee, token)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    private fun loadCoffeeImages(coffeeList: List<CoffeeResponse>, token: String) {
+        viewModelScope.launch {
+            coffeeList.forEach { coffee ->
+                if (!_imageCache.containsKey(coffee.imageName)) {
+                    val imageBytes = repository.getCoffeeImage(coffee.imageName, token)
+                    _imageCache[coffee.imageName] = imageBytes
+                }
+            }
+        }
+    }
+
+
+    fun getCoffeeImage(imageName: String, token: String): ByteArray? {
+        return if (_imageCache.containsKey(imageName)) {
+            _imageCache[imageName]
+        } else {
+            viewModelScope.launch {
+                val imageBytes = repository.getCoffeeImage(imageName, token)
+                _imageCache[imageName] = imageBytes
+            }
+            null
         }
     }
 

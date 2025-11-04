@@ -1,3 +1,5 @@
+@file:Suppress("UNCHECKED_CAST")
+
 package com.example.coffeeshop.presentation.screens
 
 import android.annotation.SuppressLint
@@ -82,6 +84,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
@@ -98,6 +101,7 @@ import com.example.coffeeshop.data.remote.api.ApiClient.coffeeApi
 import com.example.coffeeshop.domain.RegisterRequest
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
 import com.example.coffeeshop.presentation.theme.colorBackgroudWhite
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
@@ -136,7 +140,7 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
             .fillMaxSize()
             .background(color = colorBackgroudWhite)
     ) {
-        secondHalfOfHomeScreen(selectedTypeId, viewModel)
+        SecondHalfOfHomeScreen(selectedTypeId, viewModel,navController)
 
         Box(
             modifier = Modifier
@@ -159,14 +163,15 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
                 .offset(x = 24.dp, y = 211.dp),
             contentScale = ContentScale.Crop
         )
-        firstHalfOfHomeScreen(viewModel = viewModel)
+        FirstHalfOfHomeScreen(viewModel = viewModel)
     }
 }
 
 @Composable
-fun secondHalfOfHomeScreen(
+fun SecondHalfOfHomeScreen(
     selectedTypeId: MutableState<Int?>,
-    viewModel: HomeViewModel
+    viewModel: HomeViewModel,
+    navController: NavController
 ) {
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
@@ -222,6 +227,8 @@ fun secondHalfOfHomeScreen(
 
                 CoffeeCategoryColumn(
                     coffeeList = homeState.filteredCoffee,
+                    viewModel = viewModel,
+                    navController = navController,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -236,7 +243,7 @@ fun secondHalfOfHomeScreen(
 
 @SuppressLint("SuspiciousIndentation")
 @Composable
-fun firstHalfOfHomeScreen(viewModel: HomeViewModel) {
+fun FirstHalfOfHomeScreen(viewModel: HomeViewModel) {
     val context = LocalContext.current
 
     val locationViewModel = remember {
@@ -872,9 +879,10 @@ fun CoffeeCategoryRow(
 @Composable
 fun CoffeeCategoryColumn(
     coffeeList: List<CoffeeResponse>,
+    viewModel: HomeViewModel,
+    navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val baseUrl = "http://10.0.2.2:8080"
     val prefsManager = PrefsManager(LocalContext.current)
     val token = prefsManager.getToken() ?: ""
 
@@ -891,7 +899,12 @@ fun CoffeeCategoryColumn(
                 horizontalArrangement = Arrangement.spacedBy(15.dp)
             ) {
                 pair.forEach { coffee ->
-                    CoffeeItem(coffee, baseUrl, token)
+                    CoffeeItem(
+                        coffee = coffee,
+                        viewModel = viewModel,
+                        token = token,
+                        navController = navController
+                    )
                 }
 
                 if (pair.size == 1) {
@@ -903,20 +916,44 @@ fun CoffeeCategoryColumn(
 }
 
 @Composable
-fun CoffeeItem(coffee: CoffeeResponse, baseUrl: String, token: String) {
-    val imageUrl = "$baseUrl/api/coffee/image/${coffee.imageName}"
+fun CoffeeItem(
+    coffee: CoffeeResponse,
+    viewModel: HomeViewModel,
+    token: String,
+    navController: NavController
+) {
+    val imageBytes by viewModel.imageCache[coffee.imageName]
+        ?.let { bytes -> remember(bytes) { mutableStateOf(bytes) } }
+        ?: remember { mutableStateOf<ByteArray?>(null) }
 
     val imagePainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(LocalContext.current)
-            .data(imageUrl)
-            .setHeader("Authorization", token)
-            .build()
+        model = if (imageBytes != null) {
+            ImageRequest.Builder(LocalContext.current)
+                .data(imageBytes)
+                .build()
+        } else {
+            ImageRequest.Builder(LocalContext.current)
+                .data("http://10.0.2.2:8080/api/coffee/image/${coffee.imageName}")
+                .setHeader("Authorization", token)
+                .build()
+        }
     )
 
     Card(
         modifier = Modifier
             .width(156.dp)
-            .height(238.dp),
+            .height(238.dp)
+            .clickable {
+                navController.navigate(
+                    "${NavigationRoutes.DETAIL}/" +
+                            "${coffee.id}/" +
+                            "${coffee.name}/" +
+                            "${coffee.type.type}/" +
+                            "${coffee.price}/" +
+                            "${coffee.description}/" +
+                            "${coffee.imageName}"
+                )
+            },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -990,7 +1027,6 @@ fun CoffeeItem(coffee: CoffeeResponse, baseUrl: String, token: String) {
                             shape = RoundedCornerShape(8.dp)
                         )
                         .clickable {
-
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -1059,7 +1095,6 @@ fun BottomMenu() {
 
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
-    val screenWidth = configuration.screenWidthDp.dp
 
     val bottomBarHeight = if (isTablet) 110.dp else 99.dp
     val horizontalPadding = if (isTablet) 48.dp else 24.dp
