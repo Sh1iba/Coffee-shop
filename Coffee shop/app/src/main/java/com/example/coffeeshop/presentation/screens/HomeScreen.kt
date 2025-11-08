@@ -85,7 +85,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
@@ -124,6 +126,7 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
             }
         }
     )
+
     val prefsManager = PrefsManager(LocalContext.current)
     val token = prefsManager.getToken()
 
@@ -140,7 +143,7 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
             .fillMaxSize()
             .background(color = colorBackgroudWhite)
     ) {
-        SecondHalfOfHomeScreen(selectedTypeId, viewModel,navController)
+        SecondHalfOfHomeScreen(viewModel, navController)
 
         Box(
             modifier = Modifier
@@ -167,9 +170,9 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
     }
 }
 
+@SuppressLint("SuspiciousIndentation")
 @Composable
 fun SecondHalfOfHomeScreen(
-    selectedTypeId: MutableState<Int?>,
     viewModel: HomeViewModel,
     navController: NavController
 ) {
@@ -196,17 +199,11 @@ fun SecondHalfOfHomeScreen(
 
     val homeState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        bottomBar = {
-            BottomMenu()
-        }
-    ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(contentHeight)
                 .offset(y = contentOffset)
-                .padding(innerPadding)
         ) {
             Column(
                 modifier = Modifier
@@ -234,11 +231,11 @@ fun SecondHalfOfHomeScreen(
                         .weight(1f)
                 )
 
-                Spacer(modifier = Modifier.height(bottomSpacing))
+                Spacer(modifier = Modifier.height(150.dp))
             }
         }
-    }
 }
+
 
 
 @SuppressLint("SuspiciousIndentation")
@@ -816,11 +813,6 @@ fun AddressItem(
 }
 
 
-data class BottomMenuItem(
-    val label: String,
-    val icon: Int,
-    val selectedIndicator: Int
-)
 
 @Composable
 fun CoffeeCategoryRow(
@@ -1042,6 +1034,13 @@ fun CoffeeItem(
     }
 }
 
+data class BottomMenuItem(
+    val label: String,
+    val icon: Int,
+    val selectedIndicator: Int,
+    val route: String
+)
+
 @Composable
 fun BottomMenuIcon(item: BottomMenuItem, isSelected: Boolean, onClick: () -> Unit) {
     val configuration = LocalConfiguration.current
@@ -1083,15 +1082,17 @@ fun BottomMenuIcon(item: BottomMenuItem, isSelected: Boolean, onClick: () -> Uni
 }
 
 @Composable
-fun BottomMenu() {
+fun BottomMenu(navController: NavController) {
     val menuItems = listOf(
-        BottomMenuItem("Home", R.drawable.menu_home, R.drawable.selected_dot),
-        BottomMenuItem("Favorite", R.drawable.heart, R.drawable.selected_dot),
-        BottomMenuItem("Cart", R.drawable.cart, R.drawable.selected_dot),
-        BottomMenuItem("Profile", R.drawable.notification, R.drawable.selected_dot)
+        BottomMenuItem("Home", R.drawable.menu_home, R.drawable.selected_dot, NavigationRoutes.HOME),
+        BottomMenuItem("Favorite", R.drawable.heart, R.drawable.selected_dot, NavigationRoutes.FAVORITE),
+        BottomMenuItem("Cart", R.drawable.cart, R.drawable.selected_dot, NavigationRoutes.CART),
+        BottomMenuItem("Profile", R.drawable.notification, R.drawable.selected_dot, NavigationRoutes.PROFILE)
     )
 
-    val selectedItem = remember { mutableStateOf(menuItems[0].label) }
+    val currentBackStack by navController.currentBackStackEntryAsState()
+    val currentDestination = currentBackStack?.destination
+    val currentRoute = currentDestination?.route
 
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
@@ -1127,8 +1128,21 @@ fun BottomMenu() {
             menuItems.forEach { item ->
                 BottomMenuIcon(
                     item = item,
-                    isSelected = item.label == selectedItem.value,
-                    onClick = { selectedItem.value = item.label }
+                    isSelected = currentRoute == item.route,
+                    onClick = {
+                        if (currentRoute != item.route) {
+                            navController.navigate(item.route) {
+                                // Очищаем back stack до корня
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                // Предотвращаем множественные копии экрана
+                                launchSingleTop = true
+                                // Восстанавливаем состояние
+                                restoreState = true
+                            }
+                        }
+                    }
                 )
             }
         }

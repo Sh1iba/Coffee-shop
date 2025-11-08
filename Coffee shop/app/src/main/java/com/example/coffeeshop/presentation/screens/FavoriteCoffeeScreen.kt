@@ -1,114 +1,275 @@
+package com.example.coffeeshop.presentation.screens.favorite
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme.colorScheme
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import com.example.coffeeshop.R
+import com.example.coffeeshop.data.managers.PrefsManager
+import com.example.coffeeshop.data.remote.api.ApiClient
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
-import com.example.coffeeshop.navigation.NavigationRoutes
+import com.example.coffeeshop.data.repository.CoffeeRepository
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.theme.colorLightGrey
+import com.example.coffeeshop.presentation.viewmodel.FavoriteCoffeeViewModel
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FavoriteCoffeeScreen(navController: NavController) {
+fun FavoriteCoffeeScreen(
+    navController: NavController
+) {
+    val context = LocalContext.current
+    val prefsManager = PrefsManager(context)
 
-    val favoriteCoffees = remember { emptyList<CoffeeResponse>() }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-
-        Box(
-            modifier = Modifier
-                .padding(top = 68.dp)
-                .wrapContentSize()
-                .padding(horizontal = 24.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { navController.popBackStack() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = com.example.coffeeshop.R.drawable.leftarrow),
-                        contentDescription = "Back",
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Text(
-                    text = "Избранное",
-                    fontFamily = SoraFontFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    lineHeight = 19.2.sp,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.size(44.dp))
+    val viewModel: FavoriteCoffeeViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return FavoriteCoffeeViewModel(
+                    repository = CoffeeRepository(ApiClient.coffeeApi),
+                    prefsManager = prefsManager
+                ) as T
             }
         }
+    )
 
-        EmptyFavoritesState(navController = navController)
+    val favoriteCoffees by viewModel.favoriteCoffees.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.loadFavorites()
+    }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = "Избранное",
+                        fontFamily = SoraFontFamily,
+                        fontWeight = FontWeight.W600,
+                        fontSize = 20.sp,
+                        color = colorScheme.onBackground
+                    )
+                },
+                modifier = Modifier.padding(top = 68.dp),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = colorScheme.background
+                )
+            )
+        },
+        containerColor = colorScheme.background
+    ) { padding ->
+
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = colorDarkOrange)
+                }
+            }
+            error != null -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "Ошибка загрузки",
+                        color = colorScheme.error,
+                        fontSize = 16.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = error!!,
+                        color = colorScheme.onBackground,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            viewModel.clearError()
+                            viewModel.loadFavorites()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorDarkOrange
+                        )
+                    ) {
+                        Text("Повторить")
+                    }
+                }
+            }
+            favoriteCoffees.isEmpty() -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    EmptyFavoritesState(navController)
+                }
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                        .padding(padding),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(favoriteCoffees) { coffee ->
+                        CoffeeFavoriteCard(
+                            coffee = coffee,
+                            viewModel = viewModel,
+                            onRemove = {
+                                viewModel.removeFromFavorites(coffee.id)
+                            },
+                            onClick = {
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun CoffeeFavoriteCard(
+    coffee: CoffeeResponse,
+    viewModel: FavoriteCoffeeViewModel,
+    onRemove: () -> Unit,
+    onClick: () -> Unit
+) {
+    val imageBytes by remember(coffee.id) {
+        derivedStateOf { viewModel.getImageForCoffee(coffee.id) }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (imageBytes != null) {
+                Image(
+                    painter = rememberAsyncImagePainter(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(imageBytes)
+                            .build()
+                    ),
+                    contentDescription = coffee.name,
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFEDE0D4)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFEDE0D4)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = coffee.name,
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = colorDarkOrange
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = coffee.name,
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W600,
+                    fontSize = 18.sp,
+                    color = colorScheme.onBackground
+                )
+                Text(
+                    text = coffee.type.type,
+                    fontWeight = FontWeight.W400,
+                    fontSize = 12.sp,
+                    lineHeight = 14.4.sp,
+                    color = colorLightGrey,
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "₽ ${"%.2f".format(coffee.price)}",
+                    fontWeight = FontWeight.SemiBold,
+                    color = colorDarkOrange
+                )
+            }
+
+
+        }
     }
 }
 
 @Composable
 fun EmptyFavoritesState(navController: NavController) {
-    Spacer(modifier = Modifier.size(100.dp))
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -120,14 +281,13 @@ fun EmptyFavoritesState(navController: NavController) {
             modifier = Modifier
                 .size(120.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(colorLightGrey.copy(alpha = 0.1f)),
+                .background(Color(0xFFEDE0D4).copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) {
             Image(
-                painter = painterResource(id = com.example.coffeeshop.R.drawable.heart),
+                painter = painterResource(id = R.drawable.heart),
                 contentDescription = "Favorite",
                 modifier = Modifier.size(48.dp),
-
             )
         }
 
@@ -135,10 +295,10 @@ fun EmptyFavoritesState(navController: NavController) {
 
         Text(
             text = "Пока ничего нет",
-            fontFamily = SoraFontFamily,
+            fontFamily = FontFamily.Default,
             fontWeight = FontWeight.W600,
             fontSize = 20.sp,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = Color(0xFF4A4A4A),
             textAlign = TextAlign.Center
         )
 
@@ -148,7 +308,7 @@ fun EmptyFavoritesState(navController: NavController) {
             text = "Добавляйте понравившиеся напитки в избранное",
             fontSize = 14.sp,
             lineHeight = 20.sp,
-            color = colorLightGrey,
+            color = Color(0xFFB0B0B0),
             textAlign = TextAlign.Center
         )
 
@@ -159,7 +319,7 @@ fun EmptyFavoritesState(navController: NavController) {
                 .height(48.dp)
                 .width(200.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(colorDarkOrange)
+                .background(Color(0xFFD17C46))
                 .clickable { navController.popBackStack() },
             contentAlignment = Alignment.Center
         ) {
@@ -167,18 +327,16 @@ fun EmptyFavoritesState(navController: NavController) {
                 text = "Перейти в каталог",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.W600,
-                color = Color.White,
-                fontFamily = SoraFontFamily
+                color = Color.White
             )
         }
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true, name = "Favorites - Empty")
+@Preview(showBackground = true, showSystemUi = true, name = "Favorites Screen")
 @Composable
-fun FavoriteCoffeeScreenPreview() {
+fun FavoriteScreenPreview() {
     CoffeeShopTheme {
         FavoriteCoffeeScreen(navController = rememberNavController())
     }
 }
-

@@ -1,0 +1,95 @@
+package com.example.coffeeshop.presentation.viewmodel
+
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.coffeeshop.data.managers.PrefsManager
+import com.example.coffeeshop.data.remote.response.CoffeeResponse
+import com.example.coffeeshop.data.repository.CoffeeRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+class FavoriteCoffeeViewModel(
+    internal val repository: CoffeeRepository,
+    private val prefsManager: PrefsManager
+) : ViewModel() {
+
+    private val _favoriteCoffees = MutableStateFlow<List<CoffeeResponse>>(emptyList())
+    val favoriteCoffees: StateFlow<List<CoffeeResponse>> = _favoriteCoffees.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _imageMap = mutableStateMapOf<Int, ByteArray?>()
+
+    fun loadFavorites() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val token = prefsManager.getToken()
+                if (token != null) {
+                    val favoriteIds = repository.getFavorites(token).map { it.id }
+                    val allCoffee = repository.getAllCoffee(token)
+                    val favoriteCoffeeList = allCoffee.filter { it.id in favoriteIds }
+                    _favoriteCoffees.value = favoriteCoffeeList
+                    favoriteCoffeeList.forEach { coffee ->
+                        loadCoffeeImage(coffee.id, coffee.imageName, token)
+                    }
+                } else {
+                    _error.value = "Пользователь не авторизован"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка загрузки: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun removeFromFavorites(coffeeId: Int) {
+        viewModelScope.launch {
+            try {
+                val token = prefsManager.getToken()
+                if (token != null) {
+                    val success = repository.removeFromFavorites(token, coffeeId)
+                    if (success) {
+                        _favoriteCoffees.value = _favoriteCoffees.value.filter { it.id != coffeeId }
+                        _imageMap.remove(coffeeId)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun loadCoffeeImage(coffeeId: Int, imageName: String, token: String) {
+        viewModelScope.launch {
+            try {
+                if (imageName.isNotEmpty()) {
+                    val bytes = repository.getCoffeeImage(imageName, token)
+                    _imageMap[coffeeId] = bytes
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun getImageForCoffee(coffeeId: Int): ByteArray? {
+        return _imageMap[coffeeId]
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+}

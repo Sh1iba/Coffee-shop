@@ -19,6 +19,7 @@ class CoffeeRepository(
         }
     }
 
+
     suspend fun getAllCoffeeTypes(token: String): List<CoffeeTypeResponse> {
         val response = apiService.getAllCoffeeTypes(token)
         return if (response.isSuccessful) {

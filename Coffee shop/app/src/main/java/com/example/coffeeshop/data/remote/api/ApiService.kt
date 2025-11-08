@@ -50,7 +50,7 @@ interface ApiService {
         @Body request: FavoriteCoffeeRequest
     ): Response<ApiResponse>
 
-    @DELETE("favorites/remove/{coffeeId}")
+    @DELETE("coffee/favorites/{coffeeId}")
     suspend fun removeFromFavorites(
         @Header("Authorization") token: String? = null,
         @Path("coffeeId") coffeeId: Int

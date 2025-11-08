@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 
 
 class CoffeeDetailViewModel(
-    private val repository: CoffeeRepository,
+    internal val repository: CoffeeRepository,
     private val prefsManager: PrefsManager
 ) : ViewModel() {
 
@@ -31,14 +31,14 @@ class CoffeeDetailViewModel(
     private val _selectedSize = MutableStateFlow("M")
     val selectedSize: StateFlow<String> = _selectedSize.asStateFlow()
 
-    private val _isLoading = MutableStateFlow(false)
+    internal val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     val currentPrice: StateFlow<String> = combine(
         coffee,
         selectedSize
     ) { coffee, size ->
-        if (coffee == null) return@combine "$0.00"
+        if (coffee == null) return@combine "₽0.00"
 
         val basePrice = coffee.price
         val finalPrice = when (size) {
@@ -47,7 +47,7 @@ class CoffeeDetailViewModel(
             "L" -> basePrice * 1.2f
             else -> basePrice
         }
-        "$${"%.2f".format(finalPrice)}"
+        "₽${"%.2f".format(finalPrice)}"
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),

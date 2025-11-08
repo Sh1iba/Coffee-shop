@@ -7,5 +7,6 @@ object NavigationRoutes {
     const val HOME = "home"
     const val DETAIL = "coffee_detail"
     const val FAVORITE = "favorite"
-
+    const val CART = "cart"
+    const val PROFILE = "profile"
 }

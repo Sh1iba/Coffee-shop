@@ -63,18 +63,6 @@ class HomeViewModel(
     }
 
 
-    fun getCoffeeImage(imageName: String, token: String): ByteArray? {
-        return if (_imageCache.containsKey(imageName)) {
-            _imageCache[imageName]
-        } else {
-            viewModelScope.launch {
-                val imageBytes = repository.getCoffeeImage(imageName, token)
-                _imageCache[imageName] = imageBytes
-            }
-            null
-        }
-    }
-
     fun onCoffeeTypeSelected(typeName: String) {
         val currentState = _uiState.value
 
