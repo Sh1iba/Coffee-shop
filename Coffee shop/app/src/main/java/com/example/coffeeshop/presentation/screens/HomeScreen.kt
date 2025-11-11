@@ -219,6 +219,7 @@ fun SecondHalfOfHomeScreen(
                         }
                         viewModel.onCoffeeTypeSelected(typeName)
                     },
+                    viewModel = viewModel,
                     modifier = Modifier.padding(bottom = rowBottomPadding)
                 )
 
@@ -817,14 +818,25 @@ fun AddressItem(
 @Composable
 fun CoffeeCategoryRow(
     onCoffeeTypeSelected: (Int?) -> Unit,
+    viewModel: HomeViewModel,
     modifier: Modifier = Modifier
 ) {
-    val viewModel: HomeViewModel = viewModel()
     val homeState by viewModel.uiState.collectAsState()
 
-    val selectedItem = remember { mutableStateOf("Все кофе") }
+    val selectedItem = remember {
+        mutableStateOf(viewModel.getCurrentSelectedType() ?: "Все кофе")
+    }
+
     val isTablet = LocalConfiguration.current.screenWidthDp >= 600
     val fontSize = if (isTablet) 15.sp else 14.sp
+
+    LaunchedEffect(viewModel.getCurrentSelectedType()) {
+        viewModel.getCurrentSelectedType()?.let { type ->
+            if (type != selectedItem.value) {
+                selectedItem.value = type
+            }
+        }
+    }
 
     LazyRow(
         modifier = modifier.fillMaxWidth(),

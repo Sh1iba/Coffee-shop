@@ -26,6 +26,10 @@ class HomeViewModel(
     private val _imageCache = mutableStateMapOf<String, ByteArray?>()
     val imageCache: Map<String, ByteArray?> get() = _imageCache
 
+
+    private val _lastSearchQuery = MutableStateFlow("")
+    private val _lastSelectedType = MutableStateFlow<String?>(null)
+
     fun loadCoffeeData(token: String) {
         viewModelScope.launch {
             try {
@@ -38,7 +42,7 @@ class HomeViewModel(
                 _uiState.update {
                     it.copy(
                         allCoffee = coffee,
-                        filteredCoffee = coffee,
+                        filteredCoffee = applySavedFilters(coffee),
                         coffeeTypes = coffeeTypes,
                         coffeeTypeMapping = typeMapping
                     )
@@ -49,6 +53,29 @@ class HomeViewModel(
                 e.printStackTrace()
             }
         }
+    }
+
+    private fun applySavedFilters(coffeeList: List<CoffeeResponse>): List<CoffeeResponse> {
+        var filtered = coffeeList
+
+        _lastSelectedType.value?.let { typeName ->
+            if (typeName != "Все кофе") {
+                val typeId = _uiState.value.coffeeTypeMapping[typeName]
+                if (typeId != null) {
+                    filtered = filtered.filter { it.type.id == typeId }
+                }
+            }
+        }
+
+        if (_lastSearchQuery.value.isNotBlank()) {
+            filtered = filtered.filter { coffee ->
+                coffee.name.contains(_lastSearchQuery.value, ignoreCase = true) ||
+                        coffee.type.type.contains(_lastSearchQuery.value, ignoreCase = true) ||
+                        coffee.description.contains(_lastSearchQuery.value, ignoreCase = true)
+            }
+        }
+
+        return filtered
     }
 
     private fun loadCoffeeImages(coffeeList: List<CoffeeResponse>, token: String) {
@@ -62,8 +89,9 @@ class HomeViewModel(
         }
     }
 
-
     fun onCoffeeTypeSelected(typeName: String) {
+        _lastSelectedType.value = typeName
+
         val currentState = _uiState.value
 
         if (typeName == "Все кофе") {
@@ -93,6 +121,8 @@ class HomeViewModel(
     }
 
     fun searchCoffee(query: String) {
+        _lastSearchQuery.value = query
+
         val currentState = _uiState.value
         val isSearching = query.isNotBlank()
 
@@ -127,6 +157,19 @@ class HomeViewModel(
                 filteredCoffee = finalFiltered
             )
         }
+    }
+
+    fun getCurrentSelectedType(): String? {
+        return _lastSelectedType.value
+    }
+
+    fun getCurrentSearchQuery(): String {
+        return _lastSearchQuery.value
+    }
+
+    fun clearSavedState() {
+        _lastSearchQuery.value = ""
+        _lastSelectedType.value = null
     }
 }
 

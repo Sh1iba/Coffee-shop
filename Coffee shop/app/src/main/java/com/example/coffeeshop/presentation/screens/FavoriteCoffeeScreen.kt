@@ -35,6 +35,7 @@ import com.example.coffeeshop.data.managers.PrefsManager
 import com.example.coffeeshop.data.remote.api.ApiClient
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
@@ -161,8 +162,8 @@ fun FavoriteCoffeeScreen(
                             onRemove = {
                                 viewModel.removeFromFavorites(coffee.id)
                             },
-                            onClick = {
-                            }
+                            navController = navController,
+
                         )
                     }
                 }
@@ -177,7 +178,8 @@ fun CoffeeFavoriteCard(
     coffee: CoffeeResponse,
     viewModel: FavoriteCoffeeViewModel,
     onRemove: () -> Unit,
-    onClick: () -> Unit
+    navController: NavController,
+    onClick: () -> Unit = {}
 ) {
     val imageBytes by remember(coffee.id) {
         derivedStateOf { viewModel.getImageForCoffee(coffee.id) }
@@ -187,7 +189,18 @@ fun CoffeeFavoriteCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick() },
+            .clickable {
+                // Навигация к деталям кофе
+                navController.navigate(
+                    "${NavigationRoutes.DETAIL}/" +
+                            "${coffee.id}/" +
+                            "${coffee.name}/" +
+                            "${coffee.type.type}/" + // Исправлено с type.type на type.name
+                            "${coffee.price}/" +
+                            "${coffee.description}/" +
+                            "${coffee.imageName}"
+                )
+            },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
@@ -262,8 +275,6 @@ fun CoffeeFavoriteCard(
                     color = colorDarkOrange
                 )
             }
-
-
         }
     }
 }
