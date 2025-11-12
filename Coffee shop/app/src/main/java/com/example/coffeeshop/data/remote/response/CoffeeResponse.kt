@@ -5,6 +5,11 @@ data class CoffeeResponse(
     val type: CoffeeTypeResponse,
     val name: String,
     val description: String,
-    val price: Float,
+    val sizes: List<CoffeeSizeResponse>,
     val imageName: String
+)
+
+data class CoffeeSizeResponse(
+    val size: String,
+    val price: Float
 )

@@ -943,19 +943,24 @@ fun CoffeeItem(
         }
     )
 
+    val defaultPrice = remember(coffee) {
+        viewModel.getDefaultPrice(coffee)
+    }
+
     Card(
         modifier = Modifier
             .width(156.dp)
             .height(238.dp)
             .clickable {
+                val sizesEncoded = viewModel.encodeSizesForNavigation(coffee)
                 navController.navigate(
                     "${NavigationRoutes.DETAIL}/" +
                             "${coffee.id}/" +
                             "${coffee.name}/" +
                             "${coffee.type.type}/" +
-                            "${coffee.price}/" +
                             "${coffee.description}/" +
-                            "${coffee.imageName}"
+                            "${coffee.imageName}" +
+                            "?sizes=$sizesEncoded"
                 )
             },
         shape = RoundedCornerShape(16.dp),
@@ -1016,7 +1021,7 @@ fun CoffeeItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "₽ ${coffee.price}",
+                    text = "₽${"%.2f".format(defaultPrice)}",
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.W600,
                     fontSize = 18.sp,
@@ -1031,6 +1036,7 @@ fun CoffeeItem(
                             shape = RoundedCornerShape(8.dp)
                         )
                         .clickable {
+
                         },
                     contentAlignment = Alignment.Center
                 ) {

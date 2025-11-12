@@ -14,6 +14,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
+import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.presentation.screens.BottomMenu
@@ -24,6 +25,7 @@ import com.example.coffeeshop.presentation.screens.HomeScreen
 import com.example.coffeeshop.presentation.screens.RegistrationScreen
 import com.example.coffeeshop.presentation.screens.SignInScreen
 import com.example.coffeeshop.presentation.screens.favorite.FavoriteCoffeeScreen
+import java.net.URLDecoder
 
 
 class MainActivity : ComponentActivity() {
@@ -76,29 +78,53 @@ class MainActivity : ComponentActivity() {
                             SignInScreen(navController)
                         }
                         composable(
-                            route = "${NavigationRoutes.DETAIL}/{coffeeId}/{coffeeName}/{coffeeType}/{coffeePrice}/{coffeeDescription}/{imageName}",
+                            route = "${NavigationRoutes.DETAIL}/{coffeeId}/{coffeeName}/{coffeeType}/{coffeeDescription}/{imageName}?sizes={sizes}",
                             arguments = listOf(
                                 navArgument("coffeeId") { type = NavType.IntType },
                                 navArgument("coffeeName") { type = NavType.StringType },
                                 navArgument("coffeeType") { type = NavType.StringType },
-                                navArgument("coffeePrice") { type = NavType.FloatType },
                                 navArgument("coffeeDescription") { type = NavType.StringType },
-                                navArgument("imageName") { type = NavType.StringType }
+                                navArgument("imageName") { type = NavType.StringType },
+                                navArgument("sizes") {
+                                    type = NavType.StringType
+                                    defaultValue = ""
+                                }
                             )
                         ) { backStackEntry ->
                             val coffeeId = backStackEntry.arguments?.getInt("coffeeId") ?: 0
                             val coffeeName = backStackEntry.arguments?.getString("coffeeName") ?: ""
                             val coffeeType = backStackEntry.arguments?.getString("coffeeType") ?: ""
-                            val coffeePrice = backStackEntry.arguments?.getFloat("coffeePrice") ?: 0f
                             val coffeeDescription = backStackEntry.arguments?.getString("coffeeDescription") ?: ""
                             val imageName = backStackEntry.arguments?.getString("imageName") ?: ""
+                            val sizesEncoded = backStackEntry.arguments?.getString("sizes") ?: ""
+
+                            val sizes = if (sizesEncoded.isEmpty()) {
+                                emptyList()
+                            } else {
+                                try {
+                                    val decoded = URLDecoder.decode(sizesEncoded, "UTF-8")
+                                    decoded.split(",").mapNotNull { sizePrice ->
+                                        val parts = sizePrice.split(":")
+                                        if (parts.size == 2) {
+                                            CoffeeSizeResponse(
+                                                size = parts[0],
+                                                price = parts[1].toFloatOrNull() ?: 0f
+                                            )
+                                        } else {
+                                            null
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    emptyList()
+                                }
+                            }
 
                             val coffee = CoffeeResponse(
                                 id = coffeeId,
                                 type = CoffeeTypeResponse(0, coffeeType),
                                 name = coffeeName,
                                 description = coffeeDescription,
-                                price = coffeePrice,
+                                sizes = sizes,
                                 imageName = imageName
                             )
 
@@ -107,7 +133,6 @@ class MainActivity : ComponentActivity() {
                         composable(NavigationRoutes.FAVORITE) {
                             FavoriteCoffeeScreen(navController)
                         }
-
                     }
                 }
             }

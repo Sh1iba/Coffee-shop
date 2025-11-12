@@ -4,12 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.coffeeshop.data.managers.PrefsManager
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
+import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
 import com.example.coffeeshop.data.repository.CoffeeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -28,34 +30,45 @@ class CoffeeDetailViewModel(
     private val _imageBytes = MutableStateFlow<ByteArray?>(null)
     val imageBytes: StateFlow<ByteArray?> = _imageBytes.asStateFlow()
 
-    private val _selectedSize = MutableStateFlow("M")
-    val selectedSize: StateFlow<String> = _selectedSize.asStateFlow()
+    private val _selectedSize = MutableStateFlow<String?>(null)
+    val selectedSize: StateFlow<String?> = _selectedSize.asStateFlow()
 
     internal val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+
+    val availableSizes: StateFlow<List<CoffeeSizeResponse>> = _coffee
+        .asStateFlow()
+        .map { coffee ->
+            coffee?.sizes ?: emptyList()
+        }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
     val currentPrice: StateFlow<String> = combine(
-        coffee,
-        selectedSize
-    ) { coffee, size ->
+        _coffee,
+        _selectedSize
+    ) { coffee, selectedSize ->
         if (coffee == null) return@combine "₽0.00"
 
-        val basePrice = coffee.price
-        val finalPrice = when (size) {
-            "S" -> basePrice * 0.8f
-            "M" -> basePrice
-            "L" -> basePrice * 1.2f
-            else -> basePrice
-        }
-        "₽${"%.2f".format(finalPrice)}"
+        val sizeToUse = selectedSize ?: coffee.sizes.firstOrNull()?.size ?: "M"
+
+        val sizePrice = coffee.sizes.find { it.size == sizeToUse }?.price ?: 0f
+        "₽${"%.2f".format(sizePrice)}"
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
-        "$0.00"
+        "₽0.00"
     )
 
     fun setCoffee(coffee: CoffeeResponse) {
         _coffee.value = coffee
+
+        val defaultSize = coffee.sizes.find { it.size == "M" }?.size ?: coffee.sizes.firstOrNull()?.size
+        _selectedSize.value = defaultSize
         checkIfFavorite(coffee.id)
     }
 
@@ -115,5 +128,9 @@ class CoffeeDetailViewModel(
                 e.printStackTrace()
             }
         }
+    }
+
+    fun getPriceForSize(size: String): Float {
+        return _coffee.value?.sizes?.find { it.size == size }?.price ?: 0f
     }
 }

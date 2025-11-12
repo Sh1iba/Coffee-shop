@@ -69,6 +69,7 @@ import coil.request.ImageRequest
 import com.example.coffeeshop.data.managers.PrefsManager
 import com.example.coffeeshop.data.remote.api.ApiClient
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
+import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
 import com.example.coffeeshop.data.repository.CoffeeRepository
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
@@ -103,6 +104,7 @@ fun CoffeeDetailScreen(
     val selectedSize by viewModel.selectedSize.collectAsState()
     val currentPrice by viewModel.currentPrice.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val availableSizes by viewModel.availableSizes.collectAsState()
 
     LaunchedEffect(coffee) {
         viewModel.setCoffee(coffee)
@@ -115,6 +117,7 @@ fun CoffeeDetailScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
     ) {
 
         Box(
@@ -153,7 +156,7 @@ fun CoffeeDetailScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center
                 )
-                
+
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -181,7 +184,7 @@ fun CoffeeDetailScreen(
                 }
             }
         }
-        
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -365,27 +368,17 @@ fun CoffeeDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                SizeOption(
-                    size = "S",
-                    isSelected = selectedSize == "S",
-                    onClick = { viewModel.selectSize("S") }
-                )
-
-                SizeOption(
-                    size = "M",
-                    isSelected = selectedSize == "M",
-                    onClick = { viewModel.selectSize("M") }
-                )
-
-                SizeOption(
-                    size = "L",
-                    isSelected = selectedSize == "L",
-                    onClick = { viewModel.selectSize("L") }
-                )
+                availableSizes.forEach { size ->
+                    SizeOption(
+                        size = size.size,
+                        isSelected = selectedSize == size.size,
+                        onClick = { viewModel.selectSize(size.size) }
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(24.dp))
 
         BottomOrderPanel(
             price = currentPrice,
@@ -394,8 +387,6 @@ fun CoffeeDetailScreen(
         )
     }
 }
-
-
 
 @Composable
 fun SizeOption(
@@ -435,16 +426,12 @@ fun SizeOption(
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = size,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.W600,
-                color = textColor
-            )
-        }
+        Text(
+            text = size,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.W600,
+            color = textColor
+        )
     }
 }
 
@@ -457,7 +444,7 @@ fun BottomOrderPanel(
         modifier = Modifier
             .fillMaxWidth()
             .height(100.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
@@ -514,7 +501,11 @@ fun CoffeeDetailScreenPreview() {
             type = CoffeeTypeResponse(1, "Cappuccino"),
             name = "Classic Cappuccino",
             description = "Traditional Italian coffee drink prepared with espresso, hot milk, and steamed milk foam. Perfect balance of coffee and milk with a rich, creamy texture.",
-            price = 4.50f,
+            sizes = listOf(
+                CoffeeSizeResponse("S", 2.50f),
+                CoffeeSizeResponse("M", 3.00f),
+                CoffeeSizeResponse("L", 3.50f)
+            ),
             imageName = "cappuccino.jpg"
         )
 

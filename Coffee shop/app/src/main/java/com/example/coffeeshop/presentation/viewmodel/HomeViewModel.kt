@@ -9,11 +9,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.navigation.NavigationRoutes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 import kotlin.collections.filter
 
 class HomeViewModel(
@@ -55,6 +57,13 @@ class HomeViewModel(
         }
     }
 
+    internal fun encodeSizesForNavigation(coffee: CoffeeResponse): String {
+        return URLEncoder.encode(
+            coffee.sizes.joinToString(",") { "${it.size}:${it.price}" },
+            "UTF-8"
+        )
+    }
+
     private fun applySavedFilters(coffeeList: List<CoffeeResponse>): List<CoffeeResponse> {
         var filtered = coffeeList
 
@@ -74,9 +83,23 @@ class HomeViewModel(
                         coffee.description.contains(_lastSearchQuery.value, ignoreCase = true)
             }
         }
-
         return filtered
     }
+
+    fun getDefaultPrice(coffee: CoffeeResponse): Float {
+        return coffee.sizes.find { it.size == "M" }?.price ?: coffee.sizes.firstOrNull()?.price ?: 0f
+    }
+
+
+    fun getAvailableSizes(coffee: CoffeeResponse): List<String> {
+        return coffee.sizes.map { it.size }
+    }
+
+
+    fun getPriceBySize(coffee: CoffeeResponse, size: String): Float {
+        return coffee.sizes.find { it.size == size }?.price ?: getDefaultPrice(coffee)
+    }
+
 
     private fun loadCoffeeImages(coffeeList: List<CoffeeResponse>, token: String) {
         viewModelScope.launch {

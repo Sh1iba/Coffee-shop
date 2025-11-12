@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 class FavoriteCoffeeViewModel(
     internal val repository: CoffeeRepository,
@@ -91,5 +92,16 @@ class FavoriteCoffeeViewModel(
 
     fun clearError() {
         _error.value = null
+    }
+
+    fun getDefaultPrice(coffee: CoffeeResponse): Float {
+        return coffee.sizes.find { it.size == "M" }?.price ?: coffee.sizes.firstOrNull()?.price ?: 0f
+    }
+
+    fun encodeSizesForNavigation(coffee: CoffeeResponse): String {
+        return URLEncoder.encode(
+            coffee.sizes.joinToString(",") { "${it.size}:${it.price}" },
+            "UTF-8"
+        )
     }
 }

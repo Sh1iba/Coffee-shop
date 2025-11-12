@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.*
@@ -15,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -162,11 +165,12 @@ fun FavoriteCoffeeScreen(
                             onRemove = {
                                 viewModel.removeFromFavorites(coffee.id)
                             },
-                            navController = navController,
-
+                            navController = navController
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(30.dp))
             }
         }
     }
@@ -178,11 +182,14 @@ fun CoffeeFavoriteCard(
     coffee: CoffeeResponse,
     viewModel: FavoriteCoffeeViewModel,
     onRemove: () -> Unit,
-    navController: NavController,
-    onClick: () -> Unit = {}
+    navController: NavController
 ) {
     val imageBytes by remember(coffee.id) {
         derivedStateOf { viewModel.getImageForCoffee(coffee.id) }
+    }
+
+    val defaultPrice = remember(coffee) {
+        viewModel.getDefaultPrice(coffee)
     }
 
     Card(
@@ -190,15 +197,15 @@ fun CoffeeFavoriteCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .clickable {
-                // Навигация к деталям кофе
+                val sizesEncoded = viewModel.encodeSizesForNavigation(coffee)
                 navController.navigate(
                     "${NavigationRoutes.DETAIL}/" +
                             "${coffee.id}/" +
                             "${coffee.name}/" +
-                            "${coffee.type.type}/" + // Исправлено с type.type на type.name
-                            "${coffee.price}/" +
+                            "${coffee.type.type}/" +
                             "${coffee.description}/" +
-                            "${coffee.imageName}"
+                            "${coffee.imageName}" +
+                            "?sizes=$sizesEncoded"
                 )
             },
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -270,9 +277,25 @@ fun CoffeeFavoriteCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "₽ ${"%.2f".format(coffee.price)}",
+                    text = "₽${"%.2f".format(defaultPrice)}",
                     fontWeight = FontWeight.SemiBold,
                     color = colorDarkOrange
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onRemove() }
+                    .background(Color(0xFFF5F5F5)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Remove from favorites",
+                    tint = colorDarkOrange,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
