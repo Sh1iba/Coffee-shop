@@ -52,9 +52,12 @@ class CoffeeRepository(
         }
     }
 
-    suspend fun addToFavorites(token: String, coffeeId: Int): Boolean {
+    suspend fun addToFavorites(token: String, coffeeId: Int, selectedSize: String): Boolean {
         return try {
-            val request = FavoriteCoffeeRequest(coffeeId = coffeeId)
+            val request = FavoriteCoffeeRequest(
+                coffeeId = coffeeId,
+                selectedSize = selectedSize
+            )
             val response = apiService.addToFavorites(token, request)
             response.isSuccessful
         } catch (e: Exception) {

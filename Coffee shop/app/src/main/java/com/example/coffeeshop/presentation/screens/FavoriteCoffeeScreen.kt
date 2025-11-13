@@ -158,9 +158,10 @@ fun FavoriteCoffeeScreen(
                         .padding(padding),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(favoriteCoffees) { coffee ->
+                    items(favoriteCoffees) { (coffee, savedSize) ->
                         CoffeeFavoriteCard(
                             coffee = coffee,
+                            savedSize = savedSize,
                             viewModel = viewModel,
                             onRemove = {
                                 viewModel.removeFromFavorites(coffee.id)
@@ -180,6 +181,7 @@ fun FavoriteCoffeeScreen(
 @Composable
 fun CoffeeFavoriteCard(
     coffee: CoffeeResponse,
+    savedSize: String,
     viewModel: FavoriteCoffeeViewModel,
     onRemove: () -> Unit,
     navController: NavController
@@ -188,8 +190,8 @@ fun CoffeeFavoriteCard(
         derivedStateOf { viewModel.getImageForCoffee(coffee.id) }
     }
 
-    val defaultPrice = remember(coffee) {
-        viewModel.getDefaultPrice(coffee)
+    val savedPrice = remember(coffee, savedSize) {
+        viewModel.getPriceForSavedSize(coffee, savedSize)
     }
 
     Card(
@@ -274,11 +276,22 @@ fun CoffeeFavoriteCard(
                     color = colorLightGrey,
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "₽${"%.2f".format(defaultPrice)}",
-                    fontWeight = FontWeight.SemiBold,
+                    text = "Размер: $savedSize",
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W500,
+                    fontSize = 13.sp,
+                    color = Color(0xFF2F2D2C),
+                    modifier = Modifier.padding(bottom = 2.dp)
+                )
+
+                Text(
+                    text = "₽${"%.2f".format(savedPrice)}",
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W600,
+                    fontSize = 16.sp,
                     color = colorDarkOrange
                 )
             }

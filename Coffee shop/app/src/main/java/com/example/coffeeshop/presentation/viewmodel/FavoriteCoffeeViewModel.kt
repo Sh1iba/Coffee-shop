@@ -20,8 +20,9 @@ class FavoriteCoffeeViewModel(
     private val prefsManager: PrefsManager
 ) : ViewModel() {
 
-    private val _favoriteCoffees = MutableStateFlow<List<CoffeeResponse>>(emptyList())
-    val favoriteCoffees: StateFlow<List<CoffeeResponse>> = _favoriteCoffees.asStateFlow()
+    // ИЗМЕНИТЬ: Теперь храним пары (кофе + сохраненный размер)
+    private val _favoriteCoffees = MutableStateFlow<List<Pair<CoffeeResponse, String>>>(emptyList())
+    val favoriteCoffees: StateFlow<List<Pair<CoffeeResponse, String>>> = _favoriteCoffees.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -38,11 +39,16 @@ class FavoriteCoffeeViewModel(
             try {
                 val token = prefsManager.getToken()
                 if (token != null) {
-                    val favoriteIds = repository.getFavorites(token).map { it.id }
+                    val favorites = repository.getFavorites(token)
                     val allCoffee = repository.getAllCoffee(token)
-                    val favoriteCoffeeList = allCoffee.filter { it.id in favoriteIds }
+
+                    val favoriteCoffeeList = favorites.mapNotNull { favorite ->
+                        val coffee = allCoffee.find { it.id == favorite.id }
+                        coffee?.let { it to favorite.selectedSize }
+                    }
+
                     _favoriteCoffees.value = favoriteCoffeeList
-                    favoriteCoffeeList.forEach { coffee ->
+                    favoriteCoffeeList.forEach { (coffee, _) ->
                         loadCoffeeImage(coffee.id, coffee.imageName, token)
                     }
                 } else {
@@ -63,7 +69,7 @@ class FavoriteCoffeeViewModel(
                 if (token != null) {
                     val success = repository.removeFromFavorites(token, coffeeId)
                     if (success) {
-                        _favoriteCoffees.value = _favoriteCoffees.value.filter { it.id != coffeeId }
+                        _favoriteCoffees.value = _favoriteCoffees.value.filter { (coffee, _) -> coffee.id != coffeeId }
                         _imageMap.remove(coffeeId)
                     }
                 }
@@ -92,6 +98,11 @@ class FavoriteCoffeeViewModel(
 
     fun clearError() {
         _error.value = null
+    }
+
+    fun getPriceForSavedSize(coffee: CoffeeResponse, savedSize: String): Float {
+        return coffee.sizes.find { it.size == savedSize }?.price
+            ?: getDefaultPrice(coffee)
     }
 
     fun getDefaultPrice(coffee: CoffeeResponse): Float {

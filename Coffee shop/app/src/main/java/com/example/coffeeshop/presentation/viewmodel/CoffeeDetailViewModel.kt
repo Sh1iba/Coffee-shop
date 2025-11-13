@@ -76,6 +76,7 @@ class CoffeeDetailViewModel(
         viewModelScope.launch {
             val currentCoffee = _coffee.value ?: return@launch
             val token = prefsManager.getToken() ?: return@launch
+            val currentSelectedSize = _selectedSize.value ?: return@launch
 
             _isLoading.value = true
             try {
@@ -85,7 +86,7 @@ class CoffeeDetailViewModel(
                         _isFavorite.value = false
                     }
                 } else {
-                    val success = repository.addToFavorites(token, currentCoffee.id)
+                    val success = repository.addToFavorites(token, currentCoffee.id, currentSelectedSize)
                     if (success) {
                         _isFavorite.value = true
                     }
@@ -103,8 +104,11 @@ class CoffeeDetailViewModel(
             val token = prefsManager.getToken() ?: return@launch
             try {
                 val favorites = repository.getFavorites(token)
-                val isFavorite = favorites.any { it.id == coffeeId }
-                _isFavorite.value = isFavorite
+                val favorite = favorites.find { it.id == coffeeId }
+                _isFavorite.value = favorite != null
+                favorite?.let {
+                    _selectedSize.value = it.selectedSize
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
