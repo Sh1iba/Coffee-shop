@@ -1,10 +1,14 @@
 package com.example.coffeeshop.data.repository
 
 import com.example.coffeeshop.data.remote.api.ApiService
+import com.example.coffeeshop.data.remote.response.CartSummaryResponse
+import com.example.coffeeshop.data.remote.response.CoffeeCartResponse
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
 import com.example.coffeeshop.data.remote.response.FavoriteCoffeeResponse
+import com.example.coffeeshop.domain.CoffeeCartRequest
 import com.example.coffeeshop.domain.FavoriteCoffeeRequest
+import com.example.coffeeshop.domain.UpdateCartQuantityRequest
 
 class CoffeeRepository(
     private val apiService: ApiService
@@ -68,6 +72,56 @@ class CoffeeRepository(
     suspend fun removeFromFavorites(token: String, coffeeId: Int): Boolean {
         return try {
             val response = apiService.removeFromFavorites(token, coffeeId)
+            response.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getCart(token: String): CartSummaryResponse {
+        val response = apiService.getCart(token)
+        return if (response.isSuccessful) {
+            response.body() ?: CartSummaryResponse(emptyList(), 0, 0f)
+        } else {
+            CartSummaryResponse(emptyList(), 0, 0f)
+        }
+    }
+
+    suspend fun addToCart(token: String, request: CoffeeCartRequest): Boolean {
+        return try {
+            val response = apiService.addToCart(token, request)
+            response.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun updateCartQuantity(
+        token: String,
+        coffeeId: Int,
+        selectedSize: String,
+        request: UpdateCartQuantityRequest
+    ): Boolean {
+        return try {
+            val response = apiService.updateCartQuantity(token, coffeeId, selectedSize, request)
+            response.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun removeFromCart(token: String, coffeeId: Int, selectedSize: String): Boolean {
+        return try {
+            val response = apiService.removeFromCart(token, coffeeId, selectedSize)
+            response.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun clearCart(token: String): Boolean {
+        return try {
+            val response = apiService.clearCart(token)
             response.isSuccessful
         } catch (e: Exception) {
             false

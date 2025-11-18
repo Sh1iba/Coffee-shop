@@ -20,7 +20,7 @@ class FavoriteCoffeeViewModel(
     private val prefsManager: PrefsManager
 ) : ViewModel() {
 
-    // ИЗМЕНИТЬ: Теперь храним пары (кофе + сохраненный размер)
+
     private val _favoriteCoffees = MutableStateFlow<List<Pair<CoffeeResponse, String>>>(emptyList())
     val favoriteCoffees: StateFlow<List<Pair<CoffeeResponse, String>>> = _favoriteCoffees.asStateFlow()
 

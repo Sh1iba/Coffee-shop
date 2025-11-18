@@ -1,5 +1,6 @@
 package com.example.coffeeshop
 
+import CartScreen
 import com.example.coffeeshop.data.managers.PrefsManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -132,6 +133,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(NavigationRoutes.FAVORITE) {
                             FavoriteCoffeeScreen(navController)
+                        }
+                        composable(NavigationRoutes.CART) {
+                            CartScreen(navController)
                         }
                     }
                 }
