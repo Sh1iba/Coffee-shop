@@ -13,6 +13,15 @@ import com.example.coffeeshop.domain.UpdateCartQuantityRequest
 class CoffeeRepository(
     private val apiService: ApiService
 ) {
+    suspend fun getCoffeeById(coffeeId: Int, token: String): CoffeeResponse? {
+        return try {
+            val allCoffee = getAllCoffee(token)
+            allCoffee.find { it.id == coffeeId }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 
     suspend fun getAllCoffee(token: String): List<CoffeeResponse> {
         val response = apiService.getAllCoffee(token)

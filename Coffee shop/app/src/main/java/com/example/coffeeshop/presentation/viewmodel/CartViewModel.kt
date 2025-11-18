@@ -73,6 +73,18 @@ class CartViewModel(
             }
         }
     }
+    suspend fun getFullCoffeeData(coffeeId: Int): CoffeeResponse? {
+        return try {
+            val token = prefsManager.getToken()
+            if (token != null) {
+                repository.getCoffeeById(coffeeId, token)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     fun addToCart(coffeeId: Int, selectedSize: String, quantity: Int = 1) {
         viewModelScope.launch {

@@ -49,6 +49,8 @@ import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.theme.colorLightGrey
 import com.example.coffeeshop.presentation.viewmodel.CartViewModel
 import com.example.coffeeshop.presentation.viewmodel.FavoriteCoffeeViewModel
+import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,27 +77,108 @@ fun CartScreen(
     val totalPrice by viewModel.totalPrice.collectAsState()
     val totalItems by viewModel.totalItems.collectAsState()
 
+    var allSelected by remember { mutableStateOf(false) }
+    val selectedItems = remember { mutableStateMapOf<String, Boolean>() }
+
     LaunchedEffect(Unit) {
         viewModel.loadCart()
     }
 
+    LaunchedEffect(cartItems.size, selectedItems.size) {
+        allSelected = cartItems.isNotEmpty() && selectedItems.size == cartItems.size &&
+                selectedItems.all { it.value }
+    }
+
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "Корзина",
-                        fontFamily = SoraFontFamily,
-                        fontWeight = FontWeight.W600,
-                        fontSize = 20.sp,
-                        color = colorScheme.onBackground
+            Column {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            text = "Корзина",
+                            fontFamily = SoraFontFamily,
+                            fontWeight = FontWeight.W600,
+                            fontSize = 20.sp,
+                            color = colorScheme.onBackground
+                        )
+                    },
+                    modifier = Modifier.padding(top = 68.dp),
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = colorScheme.background
                     )
-                },
-                modifier = Modifier.padding(top = 68.dp),
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = colorScheme.background
                 )
-            )
+
+                if (cartItems.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .background(colorScheme.background),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                allSelected = !allSelected
+                                cartItems.forEach { item ->
+                                    val key = "${item.id}_${item.selectedSize}"
+                                    selectedItems[key] = allSelected
+                                }
+                            }
+                        ) {
+                            Checkbox(
+                                checked = allSelected,
+                                onCheckedChange = { isChecked ->
+                                    allSelected = isChecked
+                                    cartItems.forEach { item ->
+                                        val key = "${item.id}_${item.selectedSize}"
+                                        selectedItems[key] = isChecked
+                                    }
+                                },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = colorDarkOrange,
+                                    uncheckedColor = Color.Gray
+                                )
+                            )
+                            Text(
+                                text = "Выбрать все",
+                                fontWeight = FontWeight.W500,
+                                fontSize = 16.sp,
+                                color = colorScheme.onBackground,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+
+                        if (selectedItems.any { it.value }) {
+                            TextButton(
+                                onClick = {
+                                    selectedItems.forEach { (key, isSelected) ->
+                                        if (isSelected) {
+                                            val parts = key.split("_")
+                                            if (parts.size == 2) {
+                                                val coffeeId = parts[0].toIntOrNull()
+                                                val selectedSize = parts[1]
+                                                if (coffeeId != null) {
+                                                    viewModel.removeFromCart(coffeeId, selectedSize)
+                                                }
+                                            }
+                                        }
+                                    }
+                                    selectedItems.clear()
+                                    allSelected = false
+                                }
+                            ) {
+                                Text(
+                                    text = "Удалить",
+                                    color = colorDarkOrange,
+                                    fontWeight = FontWeight.W600
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         },
         containerColor = colorScheme.background
     ) { padding ->
@@ -165,6 +248,12 @@ fun CartScreen(
                             CartItemCard(
                                 item = item,
                                 viewModel = viewModel,
+                                navController = navController,
+                                selectedItems = selectedItems,
+                                onSelectionChange = { isSelected ->
+                                    val key = "${item.id}_${item.selectedSize}"
+                                    selectedItems[key] = isSelected
+                                },
                                 onQuantityChange = { newQuantity ->
                                     if (newQuantity > 0) {
                                         viewModel.updateQuantity(item.id, item.selectedSize, newQuantity)
@@ -179,18 +268,17 @@ fun CartScreen(
                         }
                     }
 
-                    CartSummary(totalPrice = totalPrice, totalItems = totalItems)
-
                     Spacer(modifier = Modifier.height(16.dp))
 
                     OrderButton(
                         totalPrice = totalPrice,
+                        totalItems = totalItems,
                         onOrderClick = {
 
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(30.dp))
+                    Spacer(modifier = Modifier.height(15.dp))
                 }
             }
         }
@@ -201,6 +289,9 @@ fun CartScreen(
 fun CartItemCard(
     item: CoffeeCartResponse,
     viewModel: CartViewModel,
+    navController: NavController,
+    selectedItems: MutableMap<String, Boolean>,
+    onSelectionChange: (Boolean) -> Unit,
     onQuantityChange: (Int) -> Unit,
     onRemove: () -> Unit
 ) {
@@ -208,10 +299,39 @@ fun CartItemCard(
         derivedStateOf { viewModel.getImageForCoffee(item.id) }
     }
 
+    val itemKey = remember(item) { "${item.id}_${item.selectedSize}" }
+    val isSelected by remember(selectedItems[itemKey]) {
+        mutableStateOf(selectedItems[itemKey] ?: false)
+    }
+
+    val coroutineScope = rememberCoroutineScope()
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .clickable {
+                coroutineScope.launch {
+                    val fullCoffeeData = viewModel.getFullCoffeeData(item.id)
+                    fullCoffeeData?.let { coffee ->
+                        val sizesEncoded = URLEncoder.encode(
+                            coffee.sizes.joinToString(",") { size ->
+                                "${size.size}:${size.price}"
+                            },
+                            "UTF-8"
+                        )
+                        navController.navigate(
+                            "${NavigationRoutes.DETAIL}/" +
+                                    "${coffee.id}/" +
+                                    "${coffee.name}/" +
+                                    "${coffee.type.type}/" +
+                                    "${coffee.description}/" +
+                                    "${coffee.imageName}" +
+                                    "?sizes=$sizesEncoded"
+                        )
+                    }
+                }
+            },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
@@ -219,32 +339,50 @@ fun CartItemCard(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (imageBytes != null) {
-                Image(
-                    painter = rememberAsyncImagePainter(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(imageBytes)
-                            .build()
-                    ),
-                    contentDescription = item.name,
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFEDE0D4)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = colorDarkOrange
+            Box(
+                modifier = Modifier.size(60.dp)
+            ) {
+                if (imageBytes != null) {
+                    Image(
+                        painter = rememberAsyncImagePainter(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(imageBytes)
+                                .build()
+                        ),
+                        contentDescription = item.name,
+                        modifier = Modifier
+                            .size(60.dp)
+                            .clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop
                     )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(60.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFEDE0D4)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = colorDarkOrange
+                        )
+                    }
                 }
+
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { isChecked ->
+                        onSelectionChange(isChecked)
+                    },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = colorDarkOrange,
+                        uncheckedColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .size(20.dp)
+                        .offset(x = (-4).dp, y = (-4).dp)
+                )
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -271,17 +409,16 @@ fun CartItemCard(
                     fontSize = 16.sp,
                     color = colorDarkOrange
                 )
-
             }
 
             Spacer(modifier = Modifier.width(8.dp))
 
-
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(
                         onClick = { onQuantityChange(item.quantity - 1) },
                         modifier = Modifier.size(32.dp)
@@ -330,43 +467,7 @@ fun CartItemCard(
 }
 
 @Composable
-fun CartSummary(totalPrice: Double, totalItems: Int) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Товары ($totalItems)", fontWeight = FontWeight.Normal)
-                Text("₽${"%.2f".format(totalPrice)}", fontWeight = FontWeight.Medium)
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Итого", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text(
-                    "₽${"%.2f".format(totalPrice)}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = colorDarkOrange
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun OrderButton(totalPrice: Double, onOrderClick: () -> Unit) {
+fun OrderButton(totalPrice: Double, totalItems: Int, onOrderClick: () -> Unit) {
     Box(
         modifier = Modifier
             .height(48.dp)
@@ -378,7 +479,7 @@ fun OrderButton(totalPrice: Double, onOrderClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "К оформлению ₽${"%.2f".format(totalPrice)}",
+            text = "К оформлению $totalItems шт., ₽${"%.2f".format(totalPrice)}",
             fontSize = 16.sp,
             fontWeight = FontWeight.W600,
             color = Color.White
