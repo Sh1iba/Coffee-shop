@@ -15,6 +15,8 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.mapSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,19 +76,30 @@ fun CartScreen(
     val cartItems by viewModel.cartItems.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    val totalPrice by viewModel.totalPrice.collectAsState()
-    val totalItems by viewModel.totalItems.collectAsState()
 
-    var allSelected by remember { mutableStateOf(false) }
-    val selectedItems = remember { mutableStateMapOf<String, Boolean>() }
+    var selectedKeys by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
+
+    val selectedCartItems = remember(cartItems, selectedKeys) {
+        cartItems.filter { item ->
+            val key = "${item.id}_${item.selectedSize}"
+            selectedKeys.contains(key)
+        }
+    }
+
+    val selectedTotalPrice = remember(selectedCartItems) {
+        selectedCartItems.sumOf { it.totalPrice.toDouble() }
+    }
+
+    val selectedTotalItems = remember(selectedCartItems) {
+        selectedCartItems.sumOf { it.quantity }
+    }
+
+    val allSelected = remember(cartItems, selectedKeys) {
+        cartItems.isNotEmpty() && selectedKeys.size == cartItems.size
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadCart()
-    }
-
-    LaunchedEffect(cartItems.size, selectedItems.size) {
-        allSelected = cartItems.isNotEmpty() && selectedItems.size == cartItems.size &&
-                selectedItems.all { it.value }
     }
 
     Scaffold(
@@ -120,20 +133,20 @@ fun CartScreen(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable {
-                                allSelected = !allSelected
-                                cartItems.forEach { item ->
-                                    val key = "${item.id}_${item.selectedSize}"
-                                    selectedItems[key] = allSelected
+                                if (allSelected) {
+                                    selectedKeys = emptySet()
+                                } else {
+                                    selectedKeys = cartItems.map { "${it.id}_${it.selectedSize}" }.toSet()
                                 }
                             }
                         ) {
                             Checkbox(
                                 checked = allSelected,
                                 onCheckedChange = { isChecked ->
-                                    allSelected = isChecked
-                                    cartItems.forEach { item ->
-                                        val key = "${item.id}_${item.selectedSize}"
-                                        selectedItems[key] = isChecked
+                                    selectedKeys = if (isChecked) {
+                                        cartItems.map { "${it.id}_${it.selectedSize}" }.toSet()
+                                    } else {
+                                        emptySet()
                                     }
                                 },
                                 colors = CheckboxDefaults.colors(
@@ -150,23 +163,20 @@ fun CartScreen(
                             )
                         }
 
-                        if (selectedItems.any { it.value }) {
+                        if (selectedKeys.isNotEmpty()) {
                             TextButton(
                                 onClick = {
-                                    selectedItems.forEach { (key, isSelected) ->
-                                        if (isSelected) {
-                                            val parts = key.split("_")
-                                            if (parts.size == 2) {
-                                                val coffeeId = parts[0].toIntOrNull()
-                                                val selectedSize = parts[1]
-                                                if (coffeeId != null) {
-                                                    viewModel.removeFromCart(coffeeId, selectedSize)
-                                                }
+                                    selectedKeys.forEach { key ->
+                                        val parts = key.split("_")
+                                        if (parts.size == 2) {
+                                            val coffeeId = parts[0].toIntOrNull()
+                                            val selectedSize = parts[1]
+                                            if (coffeeId != null) {
+                                                viewModel.removeFromCart(coffeeId, selectedSize)
                                             }
                                         }
                                     }
-                                    selectedItems.clear()
-                                    allSelected = false
+                                    selectedKeys = emptySet()
                                 }
                             ) {
                                 Text(
@@ -242,17 +252,22 @@ fun CartScreen(
                 Column(modifier = Modifier.fillMaxSize().padding(padding)) {
                     LazyColumn(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(bottom = 32.dp)
                     ) {
                         items(cartItems) { item ->
                             CartItemCard(
                                 item = item,
                                 viewModel = viewModel,
                                 navController = navController,
-                                selectedItems = selectedItems,
+                                isSelected = selectedKeys.contains("${item.id}_${item.selectedSize}"),
                                 onSelectionChange = { isSelected ->
                                     val key = "${item.id}_${item.selectedSize}"
-                                    selectedItems[key] = isSelected
+                                    selectedKeys = if (isSelected) {
+                                        selectedKeys + key
+                                    } else {
+                                        selectedKeys - key
+                                    }
                                 },
                                 onQuantityChange = { newQuantity ->
                                     if (newQuantity > 0) {
@@ -271,10 +286,10 @@ fun CartScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     OrderButton(
-                        totalPrice = totalPrice,
-                        totalItems = totalItems,
+                        totalPrice = selectedTotalPrice,
+                        totalItems = selectedTotalItems,
                         onOrderClick = {
-
+                            println("Оформляем заказ: $selectedTotalItems товаров на сумму $selectedTotalPrice")
                         }
                     )
 
@@ -290,18 +305,13 @@ fun CartItemCard(
     item: CoffeeCartResponse,
     viewModel: CartViewModel,
     navController: NavController,
-    selectedItems: MutableMap<String, Boolean>,
+    isSelected: Boolean,
     onSelectionChange: (Boolean) -> Unit,
     onQuantityChange: (Int) -> Unit,
     onRemove: () -> Unit
 ) {
     val imageBytes by remember(item.id) {
         derivedStateOf { viewModel.getImageForCoffee(item.id) }
-    }
-
-    val itemKey = remember(item) { "${item.id}_${item.selectedSize}" }
-    val isSelected by remember(selectedItems[itemKey]) {
-        mutableStateOf(selectedItems[itemKey] ?: false)
     }
 
     val coroutineScope = rememberCoroutineScope()
@@ -476,11 +486,18 @@ fun OrderButton(totalPrice: Double, totalItems: Int, onOrderClick: () -> Unit) {
             .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(colorDarkOrange)
-            .clickable(onClick = onOrderClick),
+            .clickable(
+                enabled = totalItems > 0,
+                onClick = onOrderClick
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "К оформлению $totalItems шт., ₽${"%.2f".format(totalPrice)}",
+            text = if (totalItems > 0) {
+                "К оформлению $totalItems шт., ₽${"%.2f".format(totalPrice)}"
+            } else {
+                "Выберите товары"
+            },
             fontSize = 16.sp,
             fontWeight = FontWeight.W600,
             color = Color.White
