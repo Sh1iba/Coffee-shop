@@ -78,9 +78,9 @@ class CoffeeRepository(
         }
     }
 
-    suspend fun removeFromFavorites(token: String, coffeeId: Int): Boolean {
+    suspend fun removeFromFavorites(token: String, coffeeId: Int, size: String? = null): Boolean {
         return try {
-            val response = apiService.removeFromFavorites(token, coffeeId)
+            val response = apiService.removeFromFavorites(token, coffeeId, size)
             response.isSuccessful
         } catch (e: Exception) {
             false

@@ -9,7 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.R
+
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -78,19 +78,21 @@ import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.theme.colorFoundationGrey
 import com.example.coffeeshop.presentation.theme.colorLightGrey
 import com.example.coffeeshop.presentation.theme.colorSelectOrange
+import com.example.coffeeshop.presentation.viewmodel.CartViewModel
 import com.example.coffeeshop.presentation.viewmodel.CoffeeDetailViewModel
 
 @Composable
 fun CoffeeDetailScreen(
     navController: NavController,
-    coffee: CoffeeResponse
+    coffee: CoffeeResponse,
+    favoriteSize: String = ""
 ) {
     val prefsManager = PrefsManager(LocalContext.current)
 
-    val viewModel: CoffeeDetailViewModel = viewModel(
+    val cartViewModel: CartViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return CoffeeDetailViewModel(
+                return CartViewModel(
                     repository = CoffeeRepository(ApiClient.coffeeApi),
                     prefsManager = prefsManager
                 ) as T
@@ -98,8 +100,20 @@ fun CoffeeDetailScreen(
         }
     )
 
+    val viewModel: CoffeeDetailViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return CoffeeDetailViewModel(
+                    repository = CoffeeRepository(ApiClient.coffeeApi),
+                    prefsManager = prefsManager,
+                    cartViewModel = cartViewModel
+                ) as T
+            }
+        }
+    )
+
     val currentCoffee by viewModel.coffee.collectAsState()
-    val isFavorite by viewModel.isFavorite.collectAsState()
+    val isFavoriteWithCurrentSize by viewModel.isFavoriteWithCurrentSize.collectAsState()
     val imageBytes by viewModel.imageBytes.collectAsState()
     val selectedSize by viewModel.selectedSize.collectAsState()
     val currentPrice by viewModel.currentPrice.collectAsState()
@@ -107,7 +121,7 @@ fun CoffeeDetailScreen(
     val availableSizes by viewModel.availableSizes.collectAsState()
 
     LaunchedEffect(coffee) {
-        viewModel.setCoffee(coffee)
+        viewModel.setCoffee(coffee, favoriteSize)
         viewModel.loadCoffeeImage()
     }
 
@@ -166,7 +180,7 @@ fun CoffeeDetailScreen(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isFavorite) {
+                    if (isFavoriteWithCurrentSize) {
                         Image(
                             painter = painterResource(id = com.example.coffeeshop.R.drawable.heart),
                             contentDescription = "Favorite",

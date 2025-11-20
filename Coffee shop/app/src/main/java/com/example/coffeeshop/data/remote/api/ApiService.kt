@@ -22,6 +22,7 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiService {
 
@@ -58,8 +59,10 @@ interface ApiService {
     @DELETE("coffee/favorites/{coffeeId}")
     suspend fun removeFromFavorites(
         @Header("Authorization") token: String? = null,
-        @Path("coffeeId") coffeeId: Int
+        @Path("coffeeId") coffeeId: Int,
+        @Query("size") size: String? = null
     ): Response<ApiResponse>
+
 
     @GET("coffee/cart")
     suspend fun getCart(@Header("Authorization") token: String? = null):

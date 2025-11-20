@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
                             SignInScreen(navController)
                         }
                         composable(
-                            route = "${NavigationRoutes.DETAIL}/{coffeeId}/{coffeeName}/{coffeeType}/{coffeeDescription}/{imageName}?sizes={sizes}",
+                            route = "${NavigationRoutes.DETAIL}/{coffeeId}/{coffeeName}/{coffeeType}/{coffeeDescription}/{imageName}?sizes={sizes}&favoriteSize={favoriteSize}",
                             arguments = listOf(
                                 navArgument("coffeeId") { type = NavType.IntType },
                                 navArgument("coffeeName") { type = NavType.StringType },
@@ -87,6 +87,10 @@ class MainActivity : ComponentActivity() {
                                 navArgument("coffeeDescription") { type = NavType.StringType },
                                 navArgument("imageName") { type = NavType.StringType },
                                 navArgument("sizes") {
+                                    type = NavType.StringType
+                                    defaultValue = ""
+                                },
+                                navArgument("favoriteSize") {
                                     type = NavType.StringType
                                     defaultValue = ""
                                 }
@@ -98,6 +102,7 @@ class MainActivity : ComponentActivity() {
                             val coffeeDescription = backStackEntry.arguments?.getString("coffeeDescription") ?: ""
                             val imageName = backStackEntry.arguments?.getString("imageName") ?: ""
                             val sizesEncoded = backStackEntry.arguments?.getString("sizes") ?: ""
+                            val favoriteSize = backStackEntry.arguments?.getString("favoriteSize") ?: ""
 
                             val sizes = if (sizesEncoded.isEmpty()) {
                                 emptyList()
@@ -129,7 +134,11 @@ class MainActivity : ComponentActivity() {
                                 imageName = imageName
                             )
 
-                            CoffeeDetailScreen(navController = navController, coffee = coffee)
+                            CoffeeDetailScreen(
+                                navController = navController,
+                                coffee = coffee,
+                                favoriteSize = favoriteSize
+                            )
                         }
                         composable(NavigationRoutes.FAVORITE) {
                             FavoriteCoffeeScreen(navController)

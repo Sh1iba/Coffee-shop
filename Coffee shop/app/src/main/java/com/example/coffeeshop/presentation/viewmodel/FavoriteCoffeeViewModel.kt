@@ -32,6 +32,14 @@ class FavoriteCoffeeViewModel(
 
     private val _imageMap = mutableStateMapOf<Int, ByteArray?>()
 
+    private val _scrollState = MutableStateFlow(0)
+    val scrollState: StateFlow<Int> = _scrollState.asStateFlow()
+
+    fun saveScrollPosition(position: Int) {
+        _scrollState.value = position
+    }
+
+
     fun loadFavorites() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -62,14 +70,16 @@ class FavoriteCoffeeViewModel(
         }
     }
 
-    fun removeFromFavorites(coffeeId: Int) {
+    fun removeFromFavorites(coffeeId: Int, size: String) {
         viewModelScope.launch {
             try {
                 val token = prefsManager.getToken()
                 if (token != null) {
-                    val success = repository.removeFromFavorites(token, coffeeId)
+                    val success = repository.removeFromFavorites(token, coffeeId, size)
                     if (success) {
-                        _favoriteCoffees.value = _favoriteCoffees.value.filter { (coffee, _) -> coffee.id != coffeeId }
+                        _favoriteCoffees.value = _favoriteCoffees.value.filter {
+                                (coffee, savedSize) -> coffee.id != coffeeId || savedSize != size
+                        }
                         _imageMap.remove(coffeeId)
                     }
                 }

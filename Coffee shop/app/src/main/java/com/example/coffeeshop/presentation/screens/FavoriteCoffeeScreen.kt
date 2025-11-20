@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -17,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -68,6 +68,15 @@ fun FavoriteCoffeeScreen(
     val favoriteCoffees by viewModel.favoriteCoffees.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val savedScrollState by viewModel.scrollState.collectAsState()
+
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(favoriteCoffees.isNotEmpty() && !isLoading) {
+        if (favoriteCoffees.isNotEmpty() && savedScrollState > 0) {
+            listState.scrollToItem(savedScrollState)
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadFavorites()
@@ -152,6 +161,7 @@ fun FavoriteCoffeeScreen(
             }
             else -> {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp)
@@ -164,14 +174,20 @@ fun FavoriteCoffeeScreen(
                             savedSize = savedSize,
                             viewModel = viewModel,
                             onRemove = {
-                                viewModel.removeFromFavorites(coffee.id)
+                                viewModel.removeFromFavorites(coffee.id, savedSize)
                             },
-                            navController = navController
+                            navController = navController,
+                            onNavigateToDetail = {
+                                val firstVisibleItemIndex = listState.firstVisibleItemIndex
+                                viewModel.saveScrollPosition(firstVisibleItemIndex)
+                            }
                         )
                     }
-                }
 
-                Spacer(modifier = Modifier.height(30.dp))
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
             }
         }
     }
@@ -184,7 +200,8 @@ fun CoffeeFavoriteCard(
     savedSize: String,
     viewModel: FavoriteCoffeeViewModel,
     onRemove: () -> Unit,
-    navController: NavController
+    navController: NavController,
+    onNavigateToDetail: () -> Unit
 ) {
     val imageBytes by remember(coffee.id) {
         derivedStateOf { viewModel.getImageForCoffee(coffee.id) }
@@ -207,7 +224,8 @@ fun CoffeeFavoriteCard(
                             "${coffee.type.type}/" +
                             "${coffee.description}/" +
                             "${coffee.imageName}" +
-                            "?sizes=$sizesEncoded"
+                            "?sizes=$sizesEncoded" +
+                            "&favoriteSize=$savedSize"
                 )
             },
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -300,7 +318,9 @@ fun CoffeeFavoriteCard(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable { onRemove() }
+                    .clickable {
+                        onRemove()
+                    }
                     .background(Color(0xFFF5F5F5)),
                 contentAlignment = Alignment.Center
             ) {

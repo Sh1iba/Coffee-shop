@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,13 +46,17 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 
 import androidx.compose.runtime.mutableStateOf
@@ -109,6 +115,7 @@ import com.example.coffeeshop.presentation.theme.colorBackgroudWhite
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.theme.colorGrey
 import com.example.coffeeshop.presentation.theme.colorGreyWhite
+import com.example.coffeeshop.presentation.viewmodel.CartViewModel
 import com.example.coffeeshop.presentation.viewmodel.HomeViewModel
 import com.example.coffeeshop.presentation.viewmodel.LocationViewModel
 import com.example.coffeeshop.presentation.viewmodel.SearchViewModel
@@ -130,11 +137,24 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
     val prefsManager = PrefsManager(LocalContext.current)
     val token = prefsManager.getToken()
 
+    val cartViewModel: CartViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return CartViewModel(
+                    repository = CoffeeRepository(ApiClient.coffeeApi),
+                    prefsManager = prefsManager
+                ) as T
+            }
+        }
+    )
+
     val selectedTypeId = remember { mutableStateOf<Int?>(null) }
+    val showSizeDialog by viewModel.showSizeDialog.collectAsState()
 
     LaunchedEffect(Unit) {
         if (token != null) {
             viewModel.loadCoffeeData(token)
+            cartViewModel.loadCart()
         }
     }
 
@@ -143,7 +163,7 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
             .fillMaxSize()
             .background(color = colorBackgroudWhite)
     ) {
-        SecondHalfOfHomeScreen(viewModel, navController)
+        SecondHalfOfHomeScreen(viewModel, navController, cartViewModel)
 
         Box(
             modifier = Modifier
@@ -167,6 +187,16 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
             contentScale = ContentScale.Crop
         )
         FirstHalfOfHomeScreen(viewModel = viewModel)
+
+        showSizeDialog?.let { coffee ->
+            SizeSelectionDialog(
+                coffee = coffee,
+                onDismiss = { viewModel.hideSizeSelectionDialog() },
+                onSizeSelected = { selectedSize ->
+                    cartViewModel.addToCart(coffee.id, selectedSize)
+                }
+            )
+        }
     }
 }
 
@@ -174,7 +204,8 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
 @Composable
 fun SecondHalfOfHomeScreen(
     viewModel: HomeViewModel,
-    navController: NavController
+    navController: NavController,
+    cartViewModel: CartViewModel
 ) {
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
@@ -227,6 +258,7 @@ fun SecondHalfOfHomeScreen(
                     coffeeList = homeState.filteredCoffee,
                     viewModel = viewModel,
                     navController = navController,
+                    cartViewModel = cartViewModel,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -885,6 +917,7 @@ fun CoffeeCategoryColumn(
     coffeeList: List<CoffeeResponse>,
     viewModel: HomeViewModel,
     navController: NavController,
+    cartViewModel: CartViewModel,
     modifier: Modifier = Modifier
 ) {
     val prefsManager = PrefsManager(LocalContext.current)
@@ -907,7 +940,8 @@ fun CoffeeCategoryColumn(
                         coffee = coffee,
                         viewModel = viewModel,
                         token = token,
-                        navController = navController
+                        navController = navController,
+                        cartViewModel = cartViewModel
                     )
                 }
 
@@ -924,7 +958,8 @@ fun CoffeeItem(
     coffee: CoffeeResponse,
     viewModel: HomeViewModel,
     token: String,
-    navController: NavController
+    navController: NavController,
+    cartViewModel: CartViewModel
 ) {
     val imageBytes by viewModel.imageCache[coffee.imageName]
         ?.let { bytes -> remember(bytes) { mutableStateOf(bytes) } }
@@ -947,6 +982,12 @@ fun CoffeeItem(
         viewModel.getDefaultPrice(coffee)
     }
 
+    val isInCart by remember(cartViewModel.cartItems, coffee.id) {
+        derivedStateOf {
+            cartViewModel.cartItems.value.any { it.id == coffee.id }
+        }
+    }
+
     Card(
         modifier = Modifier
             .width(156.dp)
@@ -960,7 +1001,8 @@ fun CoffeeItem(
                             "${coffee.type.type}/" +
                             "${coffee.description}/" +
                             "${coffee.imageName}" +
-                            "?sizes=$sizesEncoded"
+                            "?sizes=$sizesEncoded" +
+                            "&favoriteSize="
                 )
             },
         shape = RoundedCornerShape(16.dp),
@@ -1032,24 +1074,123 @@ fun CoffeeItem(
                     modifier = Modifier
                         .size(32.dp)
                         .background(
-                            color = colorDarkOrange,
+                            color = if (isInCart) Color.White else colorDarkOrange,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .border(
+                            width = if (isInCart) 2.dp else 0.dp,
+                            color = if (isInCart) colorDarkOrange else Color.Transparent,
                             shape = RoundedCornerShape(8.dp)
                         )
                         .clickable {
-
+                            viewModel.showSizeSelectionDialog(coffee)
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "+",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Normal
-                    )
+                    if (isInCart) {
+                        Icon(
+                            imageVector = Icons.Default.ShoppingCart,
+                            contentDescription = "В корзине",
+                            modifier = Modifier.size(18.dp),
+                            tint = colorDarkOrange
+                        )
+                    } else {
+                        Text(
+                            text = "+",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+fun SizeSelectionDialog(
+    coffee: CoffeeResponse,
+    onDismiss: () -> Unit,
+    onSizeSelected: (String) -> Unit
+) {
+    var selectedSize by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Выберите размер",
+                fontWeight = FontWeight.W600,
+                fontSize = 18.sp
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = coffee.name,
+                    fontWeight = FontWeight.W500,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                coffee.sizes.forEach { size ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .clickable { selectedSize = size.size },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedSize == size.size,
+                            onClick = { selectedSize = size.size },
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = colorDarkOrange
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Размер ${size.size}",
+                            fontWeight = FontWeight.W500,
+                            fontSize = 16.sp
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = "₽${"%.2f".format(size.price)}",
+                            fontWeight = FontWeight.W600,
+                            fontSize = 16.sp,
+                            color = colorDarkOrange
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    selectedSize?.let { onSizeSelected(it) }
+                    onDismiss()
+                },
+                enabled = selectedSize != null
+            ) {
+                Text(
+                    text = "Добавить в корзину",
+                    fontWeight = FontWeight.W600,
+                    color = if (selectedSize != null) colorDarkOrange else Color.Gray
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "Отмена",
+                    fontWeight = FontWeight.W500,
+                    color = Color.Gray
+                )
+            }
+        }
+    )
 }
 
 data class BottomMenuItem(

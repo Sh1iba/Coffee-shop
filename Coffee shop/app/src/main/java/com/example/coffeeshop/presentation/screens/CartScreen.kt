@@ -327,7 +327,8 @@ fun CartItemCard(
                                     "${coffee.type.type}/" +
                                     "${coffee.description}/" +
                                     "${coffee.imageName}" +
-                                    "?sizes=$sizesEncoded"
+                                    "?sizes=$sizesEncoded" +
+                                    "&favoriteSize=${item.selectedSize}"
                         )
                     }
                 }

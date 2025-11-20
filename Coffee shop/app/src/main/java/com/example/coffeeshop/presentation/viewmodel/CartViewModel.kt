@@ -41,7 +41,6 @@ class CartViewModel(
 
     private val _imageMap = mutableStateMapOf<Int, ByteArray?>()
 
-
     val totalPrice: StateFlow<Double> = _cartSummary.map { summary ->
         summary?.totalPrice?.toDouble() ?: 0.0
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 0.0)
@@ -49,6 +48,22 @@ class CartViewModel(
     val totalItems: StateFlow<Int> = _cartSummary.map { summary ->
         summary?.totalItems ?: 0
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 0)
+
+
+    suspend fun checkIfInCart(coffeeId: Int): String? {
+        return try {
+            val token = prefsManager.getToken()
+            if (token != null) {
+                val cart = repository.getCart(token)
+                val cartItem = cart.items.find { it.id == coffeeId }
+                cartItem?.selectedSize
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     fun loadCart() {
         viewModelScope.launch {
@@ -73,6 +88,7 @@ class CartViewModel(
             }
         }
     }
+
     suspend fun getFullCoffeeData(coffeeId: Int): CoffeeResponse? {
         return try {
             val token = prefsManager.getToken()
@@ -166,6 +182,20 @@ class CartViewModel(
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+    suspend fun getSelectedSizeForCartItem(coffeeId: Int, selectedSize: String): String? {
+        return try {
+            val token = prefsManager.getToken()
+            if (token != null) {
+                val cart = repository.getCart(token)
+                val cartItem = cart.items.find { it.id == coffeeId && it.selectedSize == selectedSize }
+                cartItem?.selectedSize
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 

@@ -32,6 +32,17 @@ class HomeViewModel(
     private val _lastSearchQuery = MutableStateFlow("")
     private val _lastSelectedType = MutableStateFlow<String?>(null)
 
+    private val _showSizeDialog = MutableStateFlow<CoffeeResponse?>(null)
+    val showSizeDialog: StateFlow<CoffeeResponse?> = _showSizeDialog.asStateFlow()
+
+    fun showSizeSelectionDialog(coffee: CoffeeResponse) {
+        _showSizeDialog.value = coffee
+    }
+
+    fun hideSizeSelectionDialog() {
+        _showSizeDialog.value = null
+    }
+
     fun loadCoffeeData(token: String) {
         viewModelScope.launch {
             try {

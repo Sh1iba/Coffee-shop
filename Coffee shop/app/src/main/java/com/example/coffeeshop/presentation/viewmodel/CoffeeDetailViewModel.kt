@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.coffeeshop.data.managers.PrefsManager
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
+import com.example.coffeeshop.data.remote.response.FavoriteCoffeeResponse
 import com.example.coffeeshop.data.repository.CoffeeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,14 +19,15 @@ import kotlinx.coroutines.launch
 
 class CoffeeDetailViewModel(
     internal val repository: CoffeeRepository,
-    private val prefsManager: PrefsManager
+    private val prefsManager: PrefsManager,
+    private val cartViewModel: CartViewModel
 ) : ViewModel() {
 
     private val _coffee = MutableStateFlow<CoffeeResponse?>(null)
     val coffee: StateFlow<CoffeeResponse?> = _coffee.asStateFlow()
 
-    private val _isFavorite = MutableStateFlow(false)
-    val isFavorite: StateFlow<Boolean> = _isFavorite.asStateFlow()
+    private val _favorites = MutableStateFlow<List<FavoriteCoffeeResponse>>(emptyList())
+    val favorites: StateFlow<List<FavoriteCoffeeResponse>> = _favorites.asStateFlow()
 
     private val _imageBytes = MutableStateFlow<ByteArray?>(null)
     val imageBytes: StateFlow<ByteArray?> = _imageBytes.asStateFlow()
@@ -36,6 +38,18 @@ class CoffeeDetailViewModel(
     internal val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    val isFavoriteWithCurrentSize: StateFlow<Boolean> = combine(
+        _coffee,
+        _selectedSize,
+        _favorites
+    ) { coffee, selectedSize, favorites ->
+        if (coffee == null || selectedSize == null) false
+        else favorites.any { it.id == coffee.id && it.selectedSize == selectedSize }
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        false
+    )
 
     val availableSizes: StateFlow<List<CoffeeSizeResponse>> = _coffee
         .asStateFlow()
@@ -64,12 +78,43 @@ class CoffeeDetailViewModel(
         "₽0.00"
     )
 
-    fun setCoffee(coffee: CoffeeResponse) {
+    private fun checkIfInCart(coffeeId: Int) {
+        viewModelScope.launch {
+            val selectedSize = cartViewModel.checkIfInCart(coffeeId)
+            selectedSize?.let { size ->
+                _selectedSize.value = size
+            }
+        }
+    }
+
+    fun setCoffee(coffee: CoffeeResponse, favoriteSize: String = "") {
         _coffee.value = coffee
 
-        val defaultSize = coffee.sizes.find { it.size == "M" }?.size ?: coffee.sizes.firstOrNull()?.size
-        _selectedSize.value = defaultSize
-        checkIfFavorite(coffee.id)
+        val initialSize = if (favoriteSize.isNotEmpty()) {
+            favoriteSize
+        } else {
+            coffee.sizes.find { it.size == "M" }?.size ?: coffee.sizes.firstOrNull()?.size
+        }
+
+        _selectedSize.value = initialSize
+
+        loadFavorites()
+    }
+
+    private fun getFavoriteSizeForCoffee(coffeeId: Int): String? {
+        return _favorites.value.find { it.id == coffeeId }?.selectedSize
+    }
+
+    private fun loadFavorites() {
+        viewModelScope.launch {
+            val token = prefsManager.getToken() ?: return@launch
+            try {
+                val favorites = repository.getFavorites(token)
+                _favorites.value = favorites
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun toggleFavorite() {
@@ -80,37 +125,23 @@ class CoffeeDetailViewModel(
 
             _isLoading.value = true
             try {
-                if (_isFavorite.value) {
-                    val success = repository.removeFromFavorites(token, currentCoffee.id)
+                val isCurrentlyFavorite = isFavoriteWithCurrentSize.value
+
+                if (isCurrentlyFavorite) {
+                    val success = repository.removeFromFavorites(token, currentCoffee.id, currentSelectedSize)
                     if (success) {
-                        _isFavorite.value = false
+                        loadFavorites()
                     }
                 } else {
                     val success = repository.addToFavorites(token, currentCoffee.id, currentSelectedSize)
                     if (success) {
-                        _isFavorite.value = true
+                        loadFavorites()
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
-            }
-        }
-    }
-
-    private fun checkIfFavorite(coffeeId: Int) {
-        viewModelScope.launch {
-            val token = prefsManager.getToken() ?: return@launch
-            try {
-                val favorites = repository.getFavorites(token)
-                val favorite = favorites.find { it.id == coffeeId }
-                _isFavorite.value = favorite != null
-                favorite?.let {
-                    _selectedSize.value = it.selectedSize
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
     }
