@@ -72,6 +72,7 @@ import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
 import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
@@ -119,10 +120,16 @@ fun CoffeeDetailScreen(
     val currentPrice by viewModel.currentPrice.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val availableSizes by viewModel.availableSizes.collectAsState()
+    val isInCartWithCurrentSize by viewModel.isInCartWithCurrentSize.collectAsState()
 
     LaunchedEffect(coffee) {
         viewModel.setCoffee(coffee, favoriteSize)
         viewModel.loadCoffeeImage()
+        viewModel.checkIfInCartWithCurrentSize()
+    }
+
+    LaunchedEffect(selectedSize) {
+        viewModel.checkIfInCartWithCurrentSize()
     }
 
     val onBackClick = { navController.popBackStack() }
@@ -396,7 +403,13 @@ fun CoffeeDetailScreen(
 
         BottomOrderPanel(
             price = currentPrice,
-            onBuyNowClick = {
+            isInCart = isInCartWithCurrentSize,
+            onButtonClick = {
+                if (isInCartWithCurrentSize) {
+                    navController.navigate(NavigationRoutes.CART)
+                } else {
+                    viewModel.addToCart()
+                }
             }
         )
     }
@@ -452,7 +465,8 @@ fun SizeOption(
 @Composable
 fun BottomOrderPanel(
     price: String,
-    onBuyNowClick: () -> Unit
+    isInCart: Boolean,
+    onButtonClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -490,15 +504,22 @@ fun BottomOrderPanel(
                     .height(48.dp)
                     .width(150.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(colorDarkOrange)
-                    .clickable { onBuyNowClick() },
+                    .background(
+                        if (isInCart) Color.White else colorDarkOrange
+                    )
+                    .border(
+                        width = if (isInCart) 1.dp else 0.dp,
+                        color = if (isInCart) colorDarkOrange else Color.Transparent,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clickable { onButtonClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Купить сейчас",
+                    text = if (isInCart) "В корзине" else "Купить сейчас",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.W600,
-                    color = Color.White,
+                    color = if (isInCart) colorDarkOrange else Color.White,
                     fontFamily = SoraFontFamily
                 )
             }

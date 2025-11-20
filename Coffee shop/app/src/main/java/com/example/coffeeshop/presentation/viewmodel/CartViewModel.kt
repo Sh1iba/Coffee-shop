@@ -50,18 +50,17 @@ class CartViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 0)
 
 
-    suspend fun checkIfInCart(coffeeId: Int): String? {
+    suspend fun checkIfInCart(coffeeId: Int, selectedSize: String): Boolean {
         return try {
             val token = prefsManager.getToken()
             if (token != null) {
                 val cart = repository.getCart(token)
-                val cartItem = cart.items.find { it.id == coffeeId }
-                cartItem?.selectedSize
+                cart.items.any { it.id == coffeeId && it.selectedSize == selectedSize }
             } else {
-                null
+                false
             }
         } catch (e: Exception) {
-            null
+            false
         }
     }
 

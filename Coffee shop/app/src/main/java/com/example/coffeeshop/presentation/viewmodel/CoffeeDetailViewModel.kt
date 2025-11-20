@@ -35,6 +35,9 @@ class CoffeeDetailViewModel(
     private val _selectedSize = MutableStateFlow<String?>(null)
     val selectedSize: StateFlow<String?> = _selectedSize.asStateFlow()
 
+    private val _isInCartWithCurrentSize = MutableStateFlow(false)
+    val isInCartWithCurrentSize: StateFlow<Boolean> = _isInCartWithCurrentSize.asStateFlow()
+
     internal val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -50,6 +53,8 @@ class CoffeeDetailViewModel(
         SharingStarted.WhileSubscribed(5000),
         false
     )
+
+
 
     val availableSizes: StateFlow<List<CoffeeSizeResponse>> = _coffee
         .asStateFlow()
@@ -78,11 +83,15 @@ class CoffeeDetailViewModel(
         "₽0.00"
     )
 
-    private fun checkIfInCart(coffeeId: Int) {
+    fun checkIfInCartWithCurrentSize() {
         viewModelScope.launch {
-            val selectedSize = cartViewModel.checkIfInCart(coffeeId)
-            selectedSize?.let { size ->
-                _selectedSize.value = size
+            val currentCoffee = _coffee.value
+            val currentSize = _selectedSize.value
+            if (currentCoffee != null && currentSize != null) {
+                val isInCart = cartViewModel.checkIfInCart(currentCoffee.id, currentSize)
+                _isInCartWithCurrentSize.value = isInCart
+            } else {
+                _isInCartWithCurrentSize.value = false
             }
         }
     }
@@ -99,10 +108,7 @@ class CoffeeDetailViewModel(
         _selectedSize.value = initialSize
 
         loadFavorites()
-    }
-
-    private fun getFavoriteSizeForCoffee(coffeeId: Int): String? {
-        return _favorites.value.find { it.id == coffeeId }?.selectedSize
+        checkIfInCartWithCurrentSize()
     }
 
     private fun loadFavorites() {
@@ -161,6 +167,23 @@ class CoffeeDetailViewModel(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+    }
+
+    fun addToCart() {
+        viewModelScope.launch {
+            val currentCoffee = _coffee.value ?: return@launch
+            val currentSize = _selectedSize.value ?: return@launch
+
+            _isLoading.value = true
+            try {
+                cartViewModel.addToCart(currentCoffee.id, currentSize, 1)
+                _isInCartWithCurrentSize.value = true
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
             }
         }
     }
