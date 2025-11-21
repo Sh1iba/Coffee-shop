@@ -860,7 +860,7 @@ fun CoffeeCategoryRow(
     }
 
     val isTablet = LocalConfiguration.current.screenWidthDp >= 600
-    val fontSize = if (isTablet) 15.sp else 14.sp
+    val fontSize = if (isTablet) 16.sp else 14.sp
 
     LaunchedEffect(viewModel.getCurrentSelectedType()) {
         viewModel.getCurrentSelectedType()?.let { type ->
@@ -1291,13 +1291,10 @@ fun BottomMenu(navController: NavController) {
                     onClick = {
                         if (currentRoute != item.route) {
                             navController.navigate(item.route) {
-                                // Очищаем back stack до корня
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
                                 }
-                                // Предотвращаем множественные копии экрана
                                 launchSingleTop = true
-                                // Восстанавливаем состояние
                                 restoreState = true
                             }
                         }
