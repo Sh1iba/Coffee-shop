@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.coffeeshop.data.remote.response.CoffeeCartResponse
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
@@ -23,9 +24,12 @@ import com.example.coffeeshop.presentation.screens.CoffeeDetailScreen
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.ui.screens.OnboardingScreen
 import com.example.coffeeshop.presentation.screens.HomeScreen
+import com.example.coffeeshop.presentation.screens.OrderScreen
 import com.example.coffeeshop.presentation.screens.RegistrationScreen
 import com.example.coffeeshop.presentation.screens.SignInScreen
 import com.example.coffeeshop.presentation.screens.favorite.FavoriteCoffeeScreen
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.net.URLDecoder
 
 
@@ -146,6 +150,43 @@ class MainActivity : ComponentActivity() {
                         composable(NavigationRoutes.CART) {
                             CartScreen(navController)
                         }
+                        // MainActivity.kt (обновленная навигация)
+                        composable(
+                            route = "${NavigationRoutes.ORDER}?selectedItems={selectedItems}&totalPrice={totalPrice}",
+                            arguments = listOf(
+                                navArgument("selectedItems") {
+                                    type = NavType.StringType
+                                    defaultValue = ""
+                                },
+                                navArgument("totalPrice") {
+                                    type = NavType.FloatType
+                                    defaultValue = 0f
+                                }
+                            )
+                        ) { backStackEntry ->
+                            val selectedItemsJson = backStackEntry.arguments?.getString("selectedItems") ?: ""
+                            val totalPrice = backStackEntry.arguments?.getFloat("totalPrice") ?: 0f
+
+                            val selectedItems = if (selectedItemsJson.isNotEmpty()) {
+                                try {
+                                    val decoded = URLDecoder.decode(selectedItemsJson, "UTF-8")
+                                    val gson = Gson()
+                                    val type = object : TypeToken<List<CoffeeCartResponse>>() {}.type
+                                    gson.fromJson<List<CoffeeCartResponse>>(decoded, type) ?: emptyList()
+                                } catch (e: Exception) {
+                                    emptyList()
+                                }
+                            } else {
+                                emptyList()
+                            }
+
+                            OrderScreen(
+                                navController = navController,
+                                selectedItems = selectedItems,
+                                totalPrice = totalPrice.toDouble()
+                            )
+                        }
+
                     }
                 }
             }

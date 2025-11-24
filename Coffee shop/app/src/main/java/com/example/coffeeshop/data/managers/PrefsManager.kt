@@ -13,8 +13,17 @@ class PrefsManager(private val context: Context) {
         const val KEY_NAME = "name"
         const val KEY_IS_LOGGED_IN = "is_logged_in"
         const val KEY_FIRST_LAUNCH = "is_first_launch"
+        const val KEY_SAVED_ADDRESS = "saved_address" // Добавляем ключ для адреса
+    }
+    // Методы для работы с адресом
+    fun saveAddress(address: String) {
+        sharedPreferences.edit().putString(KEY_SAVED_ADDRESS, address).apply()
+        Log.d("PrefsManager", "Адрес сохранен: $address")
     }
 
+    fun getSavedAddress(): String {
+        return sharedPreferences.getString(KEY_SAVED_ADDRESS, "") ?: ""
+    }
     fun isFirstLaunch(): Boolean {
         return sharedPreferences.getBoolean(KEY_FIRST_LAUNCH, true)
     }

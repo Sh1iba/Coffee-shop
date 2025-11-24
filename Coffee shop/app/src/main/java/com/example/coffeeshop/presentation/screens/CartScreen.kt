@@ -51,6 +51,7 @@ import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.theme.colorLightGrey
 import com.example.coffeeshop.presentation.viewmodel.CartViewModel
 import com.example.coffeeshop.presentation.viewmodel.FavoriteCoffeeViewModel
+import com.google.gson.Gson
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 
@@ -289,7 +290,15 @@ fun CartScreen(
                         totalPrice = selectedTotalPrice,
                         totalItems = selectedTotalItems,
                         onOrderClick = {
-                            println("Оформляем заказ: $selectedTotalItems товаров на сумму $selectedTotalPrice")
+                            if (selectedCartItems.isNotEmpty()) {
+                                val gson = Gson()
+                                val selectedItemsJson = gson.toJson(selectedCartItems)
+                                val totalPrice = selectedTotalPrice
+
+                                navController.navigate(
+                                    "${NavigationRoutes.ORDER}?selectedItems=${URLEncoder.encode(selectedItemsJson, "UTF-8")}&totalPrice=$totalPrice"
+                                )
+                            }
                         }
                     )
 

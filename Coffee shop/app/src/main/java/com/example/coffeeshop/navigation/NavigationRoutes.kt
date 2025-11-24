@@ -9,4 +9,5 @@ object NavigationRoutes {
     const val FAVORITE = "favorite"
     const val CART = "cart"
     const val PROFILE = "profile"
+    const val ORDER = "order"
 }
