@@ -30,19 +30,23 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -65,6 +69,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -124,7 +129,6 @@ fun OrderScreen(
         }
     )
 
-    // ViewModel для локации
     val locationViewModel: LocationViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -141,6 +145,17 @@ fun OrderScreen(
     val error by viewModel.error.collectAsState()
     val locationState by locationViewModel.uiState.collectAsState()
 
+    var addressNote by remember { mutableStateOf("") }
+    var showNoteDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(locationState.selectedAddress) {
+        if (locationState.selectedAddress.isNotEmpty()) {
+            addressNote = prefsManager.getAddressNote(locationState.selectedAddress)
+        } else {
+            addressNote = ""
+        }
+    }
+
     LaunchedEffect(selectedItems) {
         if (selectedItems.isNotEmpty()) {
             viewModel.loadOrderItems(selectedItems)
@@ -149,7 +164,6 @@ fun OrderScreen(
 
     val scrollState = rememberScrollState()
 
-    // Показываем диалог выбора адреса если нужно
     if (locationState.showAddressDialog) {
         AddressSelectionDialog(
             currentAddress = locationState.selectedAddress,
@@ -158,13 +172,28 @@ fun OrderScreen(
             searchResults = locationState.addressSearchResults,
             isLoading = locationState.isAddressLoading,
             onAddressSelected = { address ->
-                // Просто передаем текст адреса как строку
                 val addressText = address.toString()
                 locationViewModel.onAddressSelected(addressText)
+                addressNote = ""
+                prefsManager.clearAddressNote(locationState.selectedAddress)
             },
             onDismiss = { locationViewModel.onShowAddressDialogChange(false) },
             isTablet = false,
             screenHeight = LocalConfiguration.current.screenHeightDp.dp
+        )
+    }
+
+    if (showNoteDialog) {
+        AddressNoteDialog(
+            currentNote = addressNote,
+            onNoteChange = {
+                addressNote = it
+                if (locationState.selectedAddress.isNotEmpty()) {
+                    prefsManager.saveAddressNote(locationState.selectedAddress, it)
+                }
+            },
+            onSave = { showNoteDialog = false },
+            onDismiss = { showNoteDialog = false }
         )
     }
 
@@ -181,6 +210,20 @@ fun OrderScreen(
                 deliveryType = if (locationState.selectedAddress.isNotEmpty()) "Доставка" else "Забрать",
                 onOrderClick = {
                     println("Создание заказа на сумму: $totalPrice")
+                    println("Адрес: ${locationState.selectedAddress}")
+                    println("Примечание: $addressNote")
+
+                    if (locationState.selectedAddress.isNotEmpty()) {
+                        prefsManager.clearAddressNote(locationState.selectedAddress)
+                        addressNote = ""
+                    }
+
+                    viewModel.createOrder(
+                        items = selectedItems,
+                        address = locationState.selectedAddress,
+                        note = addressNote,
+                        totalPrice = totalPrice
+                    )
                 }
             )
         }
@@ -242,7 +285,9 @@ fun OrderScreen(
                         orderItems = orderItems,
                         totalPrice = totalPrice,
                         locationState = locationState,
-                        onLocationClick = { locationViewModel.onShowAddressDialogChange(true) }
+                        addressNote = addressNote,
+                        onLocationClick = { locationViewModel.onShowAddressDialogChange(true) },
+                        onNoteClick = { showNoteDialog = true }
                     )
                 }
             }
@@ -255,16 +300,16 @@ fun OrderContent(
     orderItems: List<OrderItem>,
     totalPrice: Double,
     locationState: LocationState,
-    onLocationClick: () -> Unit
+    addressNote: String,
+    onLocationClick: () -> Unit,
+    onNoteClick: () -> Unit
 ) {
     var selectedButton by remember { mutableStateOf("Доставка") }
 
-    // Автоматически выбираем тип доставки в зависимости от наличия адреса
     LaunchedEffect(locationState.selectedAddress) {
         selectedButton = if (locationState.selectedAddress.isNotEmpty()) "Доставка" else "Забрать"
     }
 
-    // Разбиваем адрес на основную часть и детали
     val (mainAddress, addressDetails) = remember(locationState.selectedAddress) {
         parseAddress(locationState.selectedAddress)
     }
@@ -343,7 +388,6 @@ fun OrderContent(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            // БЛОК АДРЕСА ДОСТАВКИ ПОКАЗЫВАЕТСЯ ТОЛЬКО ПРИ ВЫБОРЕ "ДОСТАВКА"
             if (selectedButton == "Доставка") {
                 Text(
                     text = "Адрес Доставки",
@@ -354,20 +398,17 @@ fun OrderContent(
                     color = MaterialTheme.colorScheme.onBackground
                 )
 
-                // Блок адреса с новым форматированием
                 Column {
-                    // Основная часть адреса - черная жирная
                     Text(
                         text = if (mainAddress.isNotEmpty()) mainAddress else "Выберите адрес",
                         color = Color.Black,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.W600,
                         fontSize = 16.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Детали адреса - серые (если есть)
                     if (addressDetails.isNotEmpty()) {
                         Text(
                             text = addressDetails,
@@ -376,6 +417,20 @@ fun OrderContent(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    if (addressNote.isNotEmpty()) {
+                        Text(
+                            text = "Примечание: $addressNote",
+                            color = colorDarkOrange,
+                            fontSize = 14.sp,
+                            fontStyle = FontStyle.Italic,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
                         )
                     }
                 }
@@ -408,24 +463,33 @@ fun OrderContent(
                     }
 
                     OutlinedButton(
-                        onClick = { /* Примечание */ },
+                        onClick = onNoteClick,
                         shape = RoundedCornerShape(50),
                         border = BorderStroke(1.dp, colorLightGrey),
-                        contentPadding = PaddingValues(horizontal = 12.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        enabled = locationState.selectedAddress.isNotEmpty()
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.note),
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onBackground,
+                            tint = if (locationState.selectedAddress.isNotEmpty()) {
+                                MaterialTheme.colorScheme.onBackground
+                            } else {
+                                Color.Gray
+                            },
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Примечание",
+                            text = if (addressNote.isNotEmpty()) "Изм. примечание" else "Примечание",
                             fontFamily = SoraFontFamily,
                             fontWeight = FontWeight.W400,
                             fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = if (locationState.selectedAddress.isNotEmpty()) {
+                                MaterialTheme.colorScheme.onBackground
+                            } else {
+                                Color.Gray
+                            }
                         )
                     }
                 }
@@ -437,7 +501,7 @@ fun OrderContent(
                 )
             }
 
-            // Динамический список выбранных товаров
+
             Text(
                 text = "Ваш заказ (${orderItems.size} товаров)",
                 fontFamily = SoraFontFamily,
@@ -473,17 +537,6 @@ fun OrderContent(
             thickness = 4.dp
         )
 
-        Image(
-            painter = painterResource(id = R.drawable.banner2),
-            contentDescription = "banner Image",
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = 24.dp),
-            contentScale = ContentScale.Crop
-        )
-
-        // Расчет стоимости с учетом типа доставки
         val deliveryFee = if (selectedButton == "Доставка") 50.00 else 0.00
         val finalTotalPrice = totalPrice + deliveryFee
 
@@ -491,7 +544,6 @@ fun OrderContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(top = 24.dp)
         ) {
             Text(
                 text = "Платежное Резюме",
@@ -526,7 +578,6 @@ fun OrderContent(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Плата за доставку показывается только для доставки
             if (selectedButton == "Доставка") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -573,15 +624,85 @@ fun OrderContent(
     }
 }
 
-// Функция для парсинга адреса на основную часть и детали
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddressNoteDialog(
+    currentNote: String,
+    onNoteChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var noteText by remember { mutableStateOf(currentNote) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Примечание к адресу",
+                fontWeight = FontWeight.W600,
+                fontSize = 18.sp
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Добавьте уточнения для курьера (подъезд, этаж, код домофона и т.д.)",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                OutlinedTextField(
+                    value = noteText,
+                    onValueChange = { noteText = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    placeholder = {
+                        Text(
+                            text = "Например: 3 подъезд, 5 этаж, код 1234",
+                            color = Color.LightGray
+                        )
+                    },
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        focusedBorderColor = colorDarkOrange,
+                        unfocusedBorderColor = colorLightGrey
+                    ),
+                    singleLine = false,
+                    maxLines = 4
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onNoteChange(noteText)
+                    onSave()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colorDarkOrange
+                ),
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Text("Сохранить")
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = onDismiss,
+                border = BorderStroke(1.dp, colorLightGrey)
+            ) {
+                Text("Отмена", color = MaterialTheme.colorScheme.onBackground)
+            }
+        }
+    )
+}
+
 private fun parseAddress(fullAddress: String): Pair<String, String> {
     if (fullAddress.isEmpty()) return "" to ""
 
     return try {
         val parts = fullAddress.split(",")
         if (parts.size >= 2) {
-            // Первая часть - город/район (основная)
-            // Остальные части - детали адреса
             parts[0].trim() to parts.subList(1, parts.size).joinToString(", ").trim()
         } else {
             fullAddress to ""
@@ -591,7 +712,6 @@ private fun parseAddress(fullAddress: String): Pair<String, String> {
     }
 }
 
-// Остальные компоненты без изменений
 @Composable
 fun OrderTopBar(onBackClick: () -> Unit) {
     Box(

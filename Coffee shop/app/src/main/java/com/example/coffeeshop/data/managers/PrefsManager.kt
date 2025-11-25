@@ -13,9 +13,29 @@ class PrefsManager(private val context: Context) {
         const val KEY_NAME = "name"
         const val KEY_IS_LOGGED_IN = "is_logged_in"
         const val KEY_FIRST_LAUNCH = "is_first_launch"
-        const val KEY_SAVED_ADDRESS = "saved_address" // Добавляем ключ для адреса
+        const val KEY_SAVED_ADDRESS = "saved_address"
     }
-    // Методы для работы с адресом
+
+    fun saveAddressNote(address: String, note: String) {
+        val prefs = context.getSharedPreferences("address_notes", Context.MODE_PRIVATE)
+        prefs.edit().putString("note_${address.hashCode()}", note).apply()
+    }
+
+    fun getAddressNote(address: String): String {
+        val prefs = context.getSharedPreferences("address_notes", Context.MODE_PRIVATE)
+        return prefs.getString("note_${address.hashCode()}", "") ?: ""
+    }
+
+    fun clearAddressNote(address: String) {
+        val prefs = context.getSharedPreferences("address_notes", Context.MODE_PRIVATE)
+        prefs.edit().remove("note_${address.hashCode()}").apply()
+    }
+
+    fun clearAllAddressNotes() {
+        val prefs = context.getSharedPreferences("address_notes", Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+    }
+
     fun saveAddress(address: String) {
         sharedPreferences.edit().putString(KEY_SAVED_ADDRESS, address).apply()
         Log.d("PrefsManager", "Адрес сохранен: $address")

@@ -1,4 +1,3 @@
-// OrderViewModel.kt (обновленный)
 package com.example.coffeeshop.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -31,6 +30,13 @@ class OrderViewModel(
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+    fun createOrder(
+        items: List<CoffeeCartResponse>,
+        address: String,
+        note: String,
+        totalPrice: Double
+    ) {
+    }
 
     fun loadOrderItems(cartItems: List<CoffeeCartResponse>) {
         viewModelScope.launch {
@@ -39,13 +45,10 @@ class OrderViewModel(
             try {
                 val token = prefsManager.getToken()
                 if (token != null) {
-                    // Загружаем полные данные для каждого товара в корзине
                     val orderItemsList = mutableListOf<OrderItem>()
 
                     for (cartItem in cartItems) {
-                        // Получаем полные данные кофе
                         val coffeeData = repository.getCoffeeById(cartItem.id, token)
-                        // Загружаем изображение
                         val imageBytes = if (cartItem.imageName.isNotEmpty()) {
                             repository.getCoffeeImage(cartItem.imageName, token)
                         } else {
