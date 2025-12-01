@@ -19,12 +19,14 @@ import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
+import com.example.coffeeshop.presentation.screens.ActiveOrderScreen
 import com.example.coffeeshop.presentation.screens.BottomMenu
 import com.example.coffeeshop.presentation.screens.CoffeeDetailScreen
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.ui.screens.OnboardingScreen
 import com.example.coffeeshop.presentation.screens.HomeScreen
 import com.example.coffeeshop.presentation.screens.OrderScreen
+import com.example.coffeeshop.presentation.screens.PickupReadyScreen
 import com.example.coffeeshop.presentation.screens.RegistrationScreen
 import com.example.coffeeshop.presentation.screens.SignInScreen
 import com.example.coffeeshop.presentation.screens.favorite.FavoriteCoffeeScreen
@@ -185,6 +187,12 @@ class MainActivity : ComponentActivity() {
                                 selectedItems = selectedItems,
                                 totalPrice = totalPrice.toDouble()
                             )
+                        }
+                        composable(NavigationRoutes.ACTIVE_ORDER) {
+                            ActiveOrderScreen(navController = navController)
+                        }
+                        composable(NavigationRoutes.PICKUP_READY_ORDER) {
+                            PickupReadyScreen(navController = navController)
                         }
 
                     }

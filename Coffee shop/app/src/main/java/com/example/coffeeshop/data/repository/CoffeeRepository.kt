@@ -8,7 +8,10 @@ import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
 import com.example.coffeeshop.data.remote.response.FavoriteCoffeeResponse
 import com.example.coffeeshop.domain.CoffeeCartRequest
 import com.example.coffeeshop.domain.FavoriteCoffeeRequest
+import com.example.coffeeshop.domain.OrderCartItem
+import com.example.coffeeshop.domain.OrderRequest
 import com.example.coffeeshop.domain.UpdateCartQuantityRequest
+import java.math.BigDecimal
 
 class CoffeeRepository(
     private val apiService: ApiService
@@ -31,7 +34,6 @@ class CoffeeRepository(
             emptyList()
         }
     }
-
 
     suspend fun getAllCoffeeTypes(token: String): List<CoffeeTypeResponse> {
         val response = apiService.getAllCoffeeTypes(token)
@@ -133,6 +135,34 @@ class CoffeeRepository(
             val response = apiService.clearCart(token)
             response.isSuccessful
         } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun createOrder(
+        token: String,
+        items: List<CoffeeCartResponse>,
+        address: String,
+        deliveryFee: Double // ДОБАВИТЬ ЭТОТ ПАРАМЕТР
+    ): Boolean {
+        return try {
+            val orderItems = items.map { cartItem ->
+                OrderCartItem(
+                    coffeeId = cartItem.id,
+                    selectedSize = cartItem.selectedSize
+                )
+            }
+
+            val request = OrderRequest(
+                deliveryAddress = address,
+                deliveryFee = BigDecimal.valueOf(deliveryFee), // ПЕРЕДАЕМ СТОИМОСТЬ ДОСТАВКИ
+                items = orderItems
+            )
+
+            val response = apiService.createOrder(token, request)
+            response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
             false
         }
     }

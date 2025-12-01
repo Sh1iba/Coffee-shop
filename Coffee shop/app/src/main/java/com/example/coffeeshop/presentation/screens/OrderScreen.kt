@@ -107,7 +107,17 @@ import com.example.coffeeshop.presentation.viewmodel.LocationState
 import com.example.coffeeshop.presentation.viewmodel.LocationViewModel
 import com.example.coffeeshop.presentation.viewmodel.OrderItem
 import com.example.coffeeshop.presentation.viewmodel.OrderViewModel
+import com.example.coffeeshop.presentation.viewmodel.ParsedAddress
+import java.math.BigDecimal
 
+
+data class OrderData(
+    val items: List<CoffeeCartResponse>,
+    val address: String,
+    val note: String,
+    val totalPrice: Double,
+    val deliveryFee: Double
+)
 
 @Composable
 fun OrderScreen(
@@ -143,16 +153,44 @@ fun OrderScreen(
     val orderItems by viewModel.orderItems.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val addressNote by viewModel.addressNote.collectAsState()
+    val showNoteDialog by viewModel.showNoteDialog.collectAsState()
+    val navigateToActiveOrder by viewModel.navigateToActiveOrder.collectAsState()
+
     val locationState by locationViewModel.uiState.collectAsState()
 
-    var addressNote by remember { mutableStateOf("") }
-    var showNoteDialog by remember { mutableStateOf(false) }
+    var selectedButton by remember { mutableStateOf("Доставка") }
+    var showAddressConfirmationDialog by remember { mutableStateOf(false) }
+    var tempOrderData by remember { mutableStateOf<OrderData?>(null) }
+
+    val navigateToPickupReady by viewModel.navigateToPickupReady.collectAsState()
+
+
+    LaunchedEffect(navigateToPickupReady) {
+        if (navigateToPickupReady) {
+            viewModel.resetAllNavigation()
+            navController.navigate(NavigationRoutes.PICKUP_READY_ORDER) {
+                popUpTo(NavigationRoutes.HOME) { inclusive = true }
+            }
+        }
+    }
+
+    LaunchedEffect(navigateToActiveOrder) {
+        if (navigateToActiveOrder) {
+            viewModel.resetAllNavigation()
+            navController.navigate(NavigationRoutes.ACTIVE_ORDER) {
+                popUpTo(NavigationRoutes.HOME) { inclusive = true }
+            }
+        }
+    }
 
     LaunchedEffect(locationState.selectedAddress) {
         if (locationState.selectedAddress.isNotEmpty()) {
-            addressNote = prefsManager.getAddressNote(locationState.selectedAddress)
+            viewModel.loadAddressNote(locationState.selectedAddress)
+            selectedButton = "Доставка"
         } else {
-            addressNote = ""
+            viewModel.clearAddressNote("")
+            selectedButton = "Забрать"
         }
     }
 
@@ -164,6 +202,32 @@ fun OrderScreen(
 
     val scrollState = rememberScrollState()
 
+    if (showAddressConfirmationDialog) {
+        AddressConfirmationDialog(
+            address = locationState.selectedAddress,
+            onConfirm = {
+                showAddressConfirmationDialog = false
+                tempOrderData?.let { data ->
+                    viewModel.createOrder(
+                        items = data.items,
+                        address = data.address,
+                        note = data.note,
+                        totalPrice = data.totalPrice,
+                        deliveryFee = data.deliveryFee
+                    )
+                }
+            },
+            onEdit = {
+                showAddressConfirmationDialog = false
+                locationViewModel.onShowAddressDialogChange(true)
+            },
+            onDismiss = {
+                showAddressConfirmationDialog = false
+                tempOrderData = null
+            }
+        )
+    }
+
     if (locationState.showAddressDialog) {
         AddressSelectionDialog(
             currentAddress = locationState.selectedAddress,
@@ -174,8 +238,7 @@ fun OrderScreen(
             onAddressSelected = { address ->
                 val addressText = address.toString()
                 locationViewModel.onAddressSelected(addressText)
-                addressNote = ""
-                prefsManager.clearAddressNote(locationState.selectedAddress)
+                viewModel.clearAddressNote(locationState.selectedAddress)
             },
             onDismiss = { locationViewModel.onShowAddressDialogChange(false) },
             isTablet = false,
@@ -187,13 +250,12 @@ fun OrderScreen(
         AddressNoteDialog(
             currentNote = addressNote,
             onNoteChange = {
-                addressNote = it
                 if (locationState.selectedAddress.isNotEmpty()) {
-                    prefsManager.saveAddressNote(locationState.selectedAddress, it)
+                    viewModel.saveAddressNote(locationState.selectedAddress, it)
                 }
             },
-            onSave = { showNoteDialog = false },
-            onDismiss = { showNoteDialog = false }
+            onSave = { viewModel.hideNoteDialog() },
+            onDismiss = { viewModel.hideNoteDialog() }
         )
     }
 
@@ -207,23 +269,23 @@ fun OrderScreen(
             BottomOrderPanel(
                 walletBalance = "₽5.53",
                 totalPrice = totalPrice,
-                deliveryType = if (locationState.selectedAddress.isNotEmpty()) "Доставка" else "Забрать",
-                onOrderClick = {
-                    println("Создание заказа на сумму: $totalPrice")
-                    println("Адрес: ${locationState.selectedAddress}")
-                    println("Примечание: $addressNote")
-
-                    if (locationState.selectedAddress.isNotEmpty()) {
-                        prefsManager.clearAddressNote(locationState.selectedAddress)
-                        addressNote = ""
+                deliveryType = selectedButton,
+                selectedItems = selectedItems,
+                locationState = locationState,
+                addressNote = addressNote,
+                onOrderClick = { items, address, note, total, deliveryFee ->
+                    if (selectedButton == "Доставка" && address.isNotEmpty()) {
+                        tempOrderData = OrderData(items, address, note, total, deliveryFee)
+                        showAddressConfirmationDialog = true
+                    } else {
+                        viewModel.createOrder(
+                            items = items,
+                            address = address,
+                            note = note,
+                            totalPrice = total,
+                            deliveryFee = deliveryFee
+                        )
                     }
-
-                    viewModel.createOrder(
-                        items = selectedItems,
-                        address = locationState.selectedAddress,
-                        note = addressNote,
-                        totalPrice = totalPrice
-                    )
                 }
             )
         }
@@ -286,13 +348,85 @@ fun OrderScreen(
                         totalPrice = totalPrice,
                         locationState = locationState,
                         addressNote = addressNote,
+                        parsedAddress = viewModel.parseAddress(locationState.selectedAddress),
+                        selectedButton = selectedButton,
                         onLocationClick = { locationViewModel.onShowAddressDialogChange(true) },
-                        onNoteClick = { showNoteDialog = true }
+                        onNoteClick = { viewModel.showNoteDialog() },
+                        onSelectedButtonChange = { newButton -> selectedButton = newButton }
                     )
                 }
             }
         }
     }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddressConfirmationDialog(
+    address: String,
+    onConfirm: () -> Unit,
+    onEdit: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Подтверждение адреса",
+                fontWeight = FontWeight.W600,
+                fontSize = 18.sp
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Адрес доставки:",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Text(
+                    text = address,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.W500,
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                Text(
+                    text = "Всё верно?",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colorDarkOrange
+                )
+            ) {
+                Text("Да, всё верно")
+            }
+        },
+        dismissButton = {
+            Row {
+                OutlinedButton(
+                    onClick = onEdit,
+                    border = BorderStroke(1.dp, colorLightGrey)
+                ) {
+                    Text("Изменить адрес", color = MaterialTheme.colorScheme.onBackground)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                TextButton(
+                    onClick = onDismiss
+                ) {
+                    Text("Отмена", color = Color.Gray)
+                }
+            }
+        }
+    )
 }
 
 @Composable
@@ -301,19 +435,12 @@ fun OrderContent(
     totalPrice: Double,
     locationState: LocationState,
     addressNote: String,
+    parsedAddress: ParsedAddress,
+    selectedButton: String,
     onLocationClick: () -> Unit,
-    onNoteClick: () -> Unit
+    onNoteClick: () -> Unit,
+    onSelectedButtonChange: (String) -> Unit
 ) {
-    var selectedButton by remember { mutableStateOf("Доставка") }
-
-    LaunchedEffect(locationState.selectedAddress) {
-        selectedButton = if (locationState.selectedAddress.isNotEmpty()) "Доставка" else "Забрать"
-    }
-
-    val (mainAddress, addressDetails) = remember(locationState.selectedAddress) {
-        parseAddress(locationState.selectedAddress)
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -337,7 +464,7 @@ fun OrderContent(
                         color = if (selectedButton == "Доставка") colorDarkOrange else Color(0xFFF5F5F5),
                         shape = RoundedCornerShape(10.dp)
                     )
-                    .clickable { selectedButton = "Доставка" }
+                    .clickable { onSelectedButtonChange("Доставка") }
                     .fillMaxHeight()
                     .weight(1f)
             ) {
@@ -361,7 +488,7 @@ fun OrderContent(
                         color = if (selectedButton == "Забрать") colorDarkOrange else Color(0xFFF5F5F5),
                         shape = RoundedCornerShape(10.dp)
                     )
-                    .clickable { selectedButton = "Забрать" }
+                    .clickable { onSelectedButtonChange("Забрать") }
                     .fillMaxHeight()
                     .weight(1f)
             ) {
@@ -400,7 +527,7 @@ fun OrderContent(
 
                 Column {
                     Text(
-                        text = if (mainAddress.isNotEmpty()) mainAddress else "Выберите адрес",
+                        text = if (parsedAddress.mainAddress.isNotEmpty()) parsedAddress.mainAddress else "Выберите адрес",
                         color = Color.Black,
                         fontWeight = FontWeight.W600,
                         fontSize = 16.sp,
@@ -409,9 +536,9 @@ fun OrderContent(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    if (addressDetails.isNotEmpty()) {
+                    if (parsedAddress.addressDetails.isNotEmpty()) {
                         Text(
-                            text = addressDetails,
+                            text = parsedAddress.addressDetails,
                             color = Color.Gray,
                             fontSize = 14.sp,
                             maxLines = 1,
@@ -500,7 +627,6 @@ fun OrderContent(
                     thickness = 1.dp
                 )
             }
-
 
             Text(
                 text = "Ваш заказ (${orderItems.size} товаров)",
@@ -697,21 +823,6 @@ fun AddressNoteDialog(
     )
 }
 
-private fun parseAddress(fullAddress: String): Pair<String, String> {
-    if (fullAddress.isEmpty()) return "" to ""
-
-    return try {
-        val parts = fullAddress.split(",")
-        if (parts.size >= 2) {
-            parts[0].trim() to parts.subList(1, parts.size).joinToString(", ").trim()
-        } else {
-            fullAddress to ""
-        }
-    } catch (e: Exception) {
-        fullAddress to ""
-    }
-}
-
 @Composable
 fun OrderTopBar(onBackClick: () -> Unit) {
     Box(
@@ -758,7 +869,10 @@ fun BottomOrderPanel(
     walletBalance: String,
     totalPrice: Double,
     deliveryType: String,
-    onOrderClick: () -> Unit = {}
+    selectedItems: List<CoffeeCartResponse>,
+    locationState: LocationState,
+    addressNote: String,
+    onOrderClick: (List<CoffeeCartResponse>, String, String, Double, Double) -> Unit = { _, _, _, _, _ -> }
 ) {
     val deliveryFee = if (deliveryType == "Доставка") 50.00 else 0.00
     val finalTotalPrice = totalPrice + deliveryFee
@@ -804,12 +918,6 @@ fun BottomOrderPanel(
                             fontSize = 16.sp,
                             color = Color.Black
                         )
-                        Text(
-                            text = walletBalance,
-                            fontWeight = FontWeight.W600,
-                            fontSize = 12.sp,
-                            color = colorDarkOrange
-                        )
                     }
                 }
 
@@ -827,7 +935,15 @@ fun BottomOrderPanel(
                     .height(56.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .background(colorDarkOrange)
-                    .clickable { onOrderClick() },
+                    .clickable {
+                        onOrderClick(
+                            selectedItems,
+                            locationState.selectedAddress,
+                            addressNote,
+                            finalTotalPrice,
+                            deliveryFee
+                        )
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Text(

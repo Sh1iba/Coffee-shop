@@ -14,8 +14,19 @@ class PrefsManager(private val context: Context) {
         const val KEY_IS_LOGGED_IN = "is_logged_in"
         const val KEY_FIRST_LAUNCH = "is_first_launch"
         const val KEY_SAVED_ADDRESS = "saved_address"
+        const val KEY_ORDER_START_TS = "order_start_ts"
     }
 
+    // Методы для работы с временем заказа
+    fun saveLong(key: String, value: Long) {
+        sharedPreferences.edit().putLong(key, value).apply()
+    }
+
+    fun getLong(key: String, defaultValue: Long): Long {
+        return sharedPreferences.getLong(key, defaultValue)
+    }
+
+    // Методы для примечаний к адресу
     fun saveAddressNote(address: String, note: String) {
         val prefs = context.getSharedPreferences("address_notes", Context.MODE_PRIVATE)
         prefs.edit().putString("note_${address.hashCode()}", note).apply()
@@ -36,6 +47,7 @@ class PrefsManager(private val context: Context) {
         prefs.edit().clear().apply()
     }
 
+    // Методы для адреса
     fun saveAddress(address: String) {
         sharedPreferences.edit().putString(KEY_SAVED_ADDRESS, address).apply()
         Log.d("PrefsManager", "Адрес сохранен: $address")
@@ -44,6 +56,8 @@ class PrefsManager(private val context: Context) {
     fun getSavedAddress(): String {
         return sharedPreferences.getString(KEY_SAVED_ADDRESS, "") ?: ""
     }
+
+    // Остальные методы
     fun isFirstLaunch(): Boolean {
         return sharedPreferences.getBoolean(KEY_FIRST_LAUNCH, true)
     }

@@ -12,6 +12,7 @@ import com.example.coffeeshop.data.remote.response.LoginResponse
 import com.example.coffeeshop.data.remote.response.RegisterResponse
 import com.example.coffeeshop.domain.CoffeeCartRequest
 import com.example.coffeeshop.domain.FavoriteCoffeeRequest
+import com.example.coffeeshop.domain.OrderRequest
 import com.example.coffeeshop.domain.UpdateCartQuantityRequest
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -92,4 +93,9 @@ interface ApiService {
     @DELETE("coffee/cart")
     suspend fun clearCart(@Header("Authorization") token: String? = null): Response<ApiResponse>
 
+    @POST("coffee/checkout")
+    suspend fun createOrder(
+        @Header("Authorization") token: String? = null,
+        @Body request: OrderRequest
+    ): Response<ApiResponse>
 }
