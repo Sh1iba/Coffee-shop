@@ -12,5 +12,6 @@ object NavigationRoutes {
     const val ACTIVE_ORDER = "active_order"
     const val PICKUP_READY_ORDER = "pickup_ready_order"
     const val SETTINGS = "settings"
+    const val ORDER_HISTORY = "order_history"
 
 }

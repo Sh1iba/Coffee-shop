@@ -15,6 +15,16 @@ class PrefsManager(private val context: Context) {
         const val KEY_FIRST_LAUNCH = "is_first_launch"
         const val KEY_SAVED_ADDRESS = "saved_address"
         const val KEY_ORDER_START_TS = "order_start_ts"
+        const val KEY_DARK_MODE = "dark_mode"
+        const val KEY_NOTIFICATIONS = "notifications"
+    }
+
+    fun saveBoolean(key: String, value: Boolean) {
+        sharedPreferences.edit().putBoolean(key, value).apply()
+    }
+
+    fun getBoolean(key: String, defaultValue: Boolean): Boolean {
+        return sharedPreferences.getBoolean(key, defaultValue)
     }
 
     fun saveLong(key: String, value: Long) {

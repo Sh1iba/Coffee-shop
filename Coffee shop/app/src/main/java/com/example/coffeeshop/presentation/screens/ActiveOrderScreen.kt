@@ -52,11 +52,12 @@ fun ActiveOrderScreen(
 
     val state by viewModel.state.collectAsState()
 
-    // Обработка событий навигации
+    // Обработка событий навигации - как в PickupReadyScreen
     LaunchedEffect(Unit) {
         viewModel.events.collectLatest { event ->
             when (event) {
                 is ActiveOrderEvent.NavigateToHome -> {
+                    // Возврат на главный экран с очисткой стека
                     navController.navigate(NavigationRoutes.HOME) {
                         popUpTo(0) { inclusive = true }
                     }
@@ -69,6 +70,11 @@ fun ActiveOrderScreen(
     ActiveOrderContent(
         state = state,
         onBackClick = {
+            // При нажатии кнопки "Назад" - возврат на главный
+            viewModel.onEvent(ActiveOrderEvent.NavigateToHome)
+        },
+        onPickupClick = {
+            // При нажатии кнопки "Забрать заказ" - возврат на главный
             viewModel.onEvent(ActiveOrderEvent.NavigateToHome)
         }
     )
@@ -77,7 +83,8 @@ fun ActiveOrderScreen(
 @Composable
 fun ActiveOrderContent(
     state: ActiveOrderState,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onPickupClick: () -> Unit  // Добавлен параметр как в PickupReadyScreen
 ) {
     val infiniteTransition = rememberInfiniteTransition()
     val courierProgress by infiniteTransition.animateFloat(
@@ -148,6 +155,7 @@ fun ActiveOrderContent(
 
         OrderStatusPanel(
             state = state,
+            onPickupClick = onPickupClick,  // Передаем обработчик
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
@@ -163,6 +171,7 @@ fun ActiveOrderContent(
 @Composable
 fun OrderStatusPanel(
     state: ActiveOrderState,
+    onPickupClick: () -> Unit,  // Добавлен параметр
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -207,9 +216,10 @@ fun OrderStatusPanel(
 
             Spacer(Modifier.height(32.dp))
 
-            if (state.isOrderDelivered) {
-                PickupButton(onClick = { })
-            }
+            ActiveOrderButton(
+                isOrderDelivered = state.isOrderDelivered,
+                onPickupClick = onPickupClick
+            )
         }
     }
 }
@@ -293,22 +303,47 @@ fun OrderDeliveredMessage() {
 }
 
 @Composable
-fun PickupButton(onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = colorDarkOrange
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Text(
-            text = "Забрать заказ",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.W600
-        )
+fun ActiveOrderButton(  // Изменил имя
+    isOrderDelivered: Boolean,
+    onPickupClick: () -> Unit
+) {
+    if (isOrderDelivered) {
+        Button(
+            onClick = onPickupClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = colorDarkOrange
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text(
+                text = "Забрать заказ",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.W600
+            )
+        }
+    } else {
+        Button(
+            onClick = {},
+            enabled = false,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFE0E0E0),
+                disabledContainerColor = Color(0xFFE0E0E0)
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text(
+                text = "Заказ в пути...",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.W600,
+                color = Color.Gray
+            )
+        }
     }
 }
 
@@ -344,6 +379,7 @@ fun ActiveOrderScreenPreview() {
             progress = 0.5f,
             isOrderDelivered = false
         ),
-        onBackClick = {}
+        onBackClick = {},
+        onPickupClick = {}
     )
 }

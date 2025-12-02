@@ -6,6 +6,7 @@ import com.example.coffeeshop.data.remote.response.CoffeeCartResponse
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
 import com.example.coffeeshop.data.remote.response.FavoriteCoffeeResponse
+import com.example.coffeeshop.data.remote.response.OrderResponse
 import com.example.coffeeshop.domain.CoffeeCartRequest
 import com.example.coffeeshop.domain.FavoriteCoffeeRequest
 import com.example.coffeeshop.domain.OrderCartItem
@@ -143,7 +144,7 @@ class CoffeeRepository(
         token: String,
         items: List<CoffeeCartResponse>,
         address: String,
-        deliveryFee: Double // ДОБАВИТЬ ЭТОТ ПАРАМЕТР
+        deliveryFee: Double
     ): Boolean {
         return try {
             val orderItems = items.map { cartItem ->
@@ -155,7 +156,7 @@ class CoffeeRepository(
 
             val request = OrderRequest(
                 deliveryAddress = address,
-                deliveryFee = BigDecimal.valueOf(deliveryFee), // ПЕРЕДАЕМ СТОИМОСТЬ ДОСТАВКИ
+                deliveryFee = BigDecimal.valueOf(deliveryFee),
                 items = orderItems
             )
 
@@ -164,6 +165,15 @@ class CoffeeRepository(
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    suspend fun getOrderHistory(token: String): List<OrderResponse> {
+        val response = apiService.getOrderHistory(token)
+        return if (response.isSuccessful) {
+            response.body() ?: emptyList()
+        } else {
+            emptyList()
         }
     }
 }

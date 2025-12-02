@@ -25,6 +25,7 @@ import com.example.coffeeshop.presentation.screens.CoffeeDetailScreen
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.ui.screens.OnboardingScreen
 import com.example.coffeeshop.presentation.screens.HomeScreen
+import com.example.coffeeshop.presentation.screens.OrderHistoryScreen
 import com.example.coffeeshop.presentation.screens.OrderScreen
 import com.example.coffeeshop.presentation.screens.PickupReadyScreen
 import com.example.coffeeshop.presentation.screens.RegistrationScreen
@@ -197,6 +198,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(NavigationRoutes.SETTINGS) {
                             SettingsScreen(navController = navController)
+                        }
+                        composable(NavigationRoutes.ORDER_HISTORY) {
+                            OrderHistoryScreen(navController = navController)
                         }
 
                     }

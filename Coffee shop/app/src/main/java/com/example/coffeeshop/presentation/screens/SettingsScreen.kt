@@ -1,29 +1,40 @@
 package com.example.coffeeshop.presentation.screens
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.twotone.ArrowForward
 import androidx.compose.material.icons.automirrored.twotone.ExitToApp
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.twotone.Build
-import androidx.compose.material.icons.twotone.DateRange
-import androidx.compose.material.icons.twotone.Email
-import androidx.compose.material.icons.twotone.Info
+import androidx.compose.material.icons.twotone.*
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.coffeeshop.data.managers.PrefsManager
 import com.example.coffeeshop.navigation.NavigationRoutes
-
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import com.example.coffeeshop.R
+import com.example.coffeeshop.presentation.theme.SoraFontFamily
+import com.example.coffeeshop.presentation.theme.colorBackgroudWhite
+import com.example.coffeeshop.presentation.theme.colorDarkOrange
+import com.example.coffeeshop.presentation.theme.colorFoundationWhite
+import com.example.coffeeshop.presentation.theme.colorLightWhite
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,15 +44,49 @@ fun SettingsScreen(navController: NavController) {
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
+            // ВЕРХНИЙ БАР (фиксированный) как в других экранах
+            Column(
+                modifier = Modifier.background(MaterialTheme.colorScheme.background)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 68.dp, start = 24.dp, end = 24.dp, bottom = 24.dp)
+                        .height(44.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable { navController.navigateUp() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.leftarrow),
+                            contentDescription = "Back",
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+
                     Text(
                         text = "Настройки",
-                        style = MaterialTheme.typography.titleLarge
+                        fontFamily = SoraFontFamily,
+                        fontWeight = FontWeight.W600,
+                        fontSize = 20.sp,
+                        lineHeight = 30.sp,
+                        color = colorScheme.onBackground,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Box(
+                        modifier = Modifier.size(44.dp)
                     )
                 }
-            )
-        }
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -50,13 +95,14 @@ fun SettingsScreen(navController: NavController) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Информация о пользователе
             UserInfoSection(prefsManager)
 
-            // Разделитель
-            Divider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            Divider(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+            )
 
-            // Настройки приложения
             SettingsOptionsSection(
                 prefsManager = prefsManager,
                 navController = navController,
@@ -71,47 +117,63 @@ private fun UserInfoSection(prefsManager: PrefsManager) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 24.dp, vertical = 8.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        ),
+        shape = MaterialTheme.shapes.large
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colorLightWhite)
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            Icon(
+                imageVector = Icons.TwoTone.AccountCircle,
+                contentDescription = "Профиль",
+                modifier = Modifier.size(48.dp),
+            )
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Профиль",
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                Text(
+                    text = "Профиль",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = SoraFontFamily,
+                        fontWeight = FontWeight.W600,
+                        fontSize = 16.sp,
+                        lineHeight = 24.sp
+                    ),
                 )
 
-                Column {
-                    Text(
-                        text = "Профиль",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                val userName = prefsManager.getName() ?: "Пользователь"
+                val userEmail = prefsManager.getEmail() ?: "email@example.com"
 
-                    val userName = prefsManager.getName() ?: "Пользователь"
-                    val userEmail = prefsManager.getEmail() ?: "email@example.com"
+                Text(
+                    text = userName,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = SoraFontFamily,
+                        fontWeight = FontWeight.W600,
+                        fontSize = 20.sp,
+                        lineHeight = 30.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
 
-                    Text(
-                        text = userName,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-
-                    Text(
-                        text = userEmail,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = userEmail,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = SoraFontFamily,
+                        fontWeight = FontWeight.W400,
+                        fontSize = 12.sp,
+                        lineHeight = 14.4.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -124,18 +186,36 @@ private fun SettingsOptionsSection(
     context: Context
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var darkModeEnabled by remember { mutableStateOf(false) }
-    var notificationsEnabled by remember { mutableStateOf(true) }
+
+    // Сохраняем состояние свитчей через rememberSaveable
+    var darkModeEnabled by rememberSaveable { mutableStateOf(prefsManager.getBoolean("dark_mode", false)) }
+    var notificationsEnabled by rememberSaveable { mutableStateOf(prefsManager.getBoolean("notifications", true)) }
+
+    // При изменении состояния сохраняем в PrefsManager
+    LaunchedEffect(darkModeEnabled) {
+        prefsManager.saveBoolean("dark_mode", darkModeEnabled)
+    }
+
+    LaunchedEffect(notificationsEnabled) {
+        prefsManager.saveBoolean("notifications", notificationsEnabled)
+    }
 
     // Уведомления
     SettingsItem(
         title = "Уведомления",
-        subtitle = "Включить/выключить уведомления",
-        leadingIcon = Icons.Default.Notifications,
+        subtitle = "Вкл/выкл уведомления",
+        leadingIcon = Icons.TwoTone.Notifications,
         trailingContent = {
             Switch(
                 checked = notificationsEnabled,
-                onCheckedChange = { notificationsEnabled = it }
+                onCheckedChange = { notificationsEnabled = it },
+                modifier = Modifier.widthIn(max = 52.dp),
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = colorDarkOrange,
+                    checkedTrackColor = colorDarkOrange.copy(alpha = 0.3f),
+                    uncheckedThumbColor = MaterialTheme.colorScheme.outlineVariant,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
             )
         }
     )
@@ -148,18 +228,25 @@ private fun SettingsOptionsSection(
         trailingContent = {
             Switch(
                 checked = darkModeEnabled,
-                onCheckedChange = { darkModeEnabled = it }
+                onCheckedChange = { darkModeEnabled = it },
+                modifier = Modifier.widthIn(max = 52.dp),
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = colorDarkOrange,
+                    checkedTrackColor = colorDarkOrange.copy(alpha = 0.3f),
+                    uncheckedThumbColor = MaterialTheme.colorScheme.outlineVariant,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
             )
         }
     )
 
-    // История заказов
+
     SettingsItem(
         title = "История заказов",
         subtitle = "Просмотр ваших заказов",
         leadingIcon = Icons.TwoTone.DateRange,
         onClick = {
-            // TODO: Реализовать переход на экран истории заказов
+            navController.navigate("order_history")
         }
     )
 
@@ -169,7 +256,7 @@ private fun SettingsOptionsSection(
         subtitle = "Поддержка и обратная связь",
         leadingIcon = Icons.TwoTone.Email,
         onClick = {
-            // TODO: Реализовать переход на экран контактов
+            openTelegram(context, "https://t.me/b0neless0")
         }
     )
 
@@ -184,24 +271,45 @@ private fun SettingsOptionsSection(
     )
 
     // Разделитель перед выходом
-    Divider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+    Divider(
+        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        thickness = 1.dp,
+        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+    )
 
     SettingsItem(
         title = "Выйти из аккаунта",
         subtitle = "Завершить текущую сессию",
         leadingIcon = Icons.AutoMirrored.TwoTone.ExitToApp,
-        containerColor = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        trailingContent = null,
+        containerColor = MaterialTheme.colorScheme.surface, // Фон белый как у всех
+        contentColor = MaterialTheme.colorScheme.error, // Только для заголовка
         onClick = {
             showLogoutDialog = true
         }
     )
-
+    // Диалог подтверждения выхода
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Выход из аккаунта") },
-            text = { Text("Вы уверены, что хотите выйти из аккаунта?") },
+            title = {
+                Text(
+                    "Выход из аккаунта",
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W600,
+                    fontSize = 20.sp,
+                    lineHeight = 30.sp
+                )
+            },
+            text = {
+                Text(
+                    "Вы уверены, что хотите выйти из аккаунта?",
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W400,
+                    fontSize = 14.sp,
+                    lineHeight = 24.sp
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -214,14 +322,27 @@ private fun SettingsOptionsSection(
                         showLogoutDialog = false
                     }
                 ) {
-                    Text("Выйти", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        "Выйти",
+                        fontFamily = SoraFontFamily,
+                        fontWeight = FontWeight.W600,
+                        fontSize = 16.sp,
+                        lineHeight = 24.sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = { showLogoutDialog = false }
                 ) {
-                    Text("Отмена")
+                    Text(
+                        "Отмена",
+                        fontFamily = SoraFontFamily,
+                        fontWeight = FontWeight.W500,
+                        fontSize = 16.sp,
+                        lineHeight = 24.sp
+                    )
                 }
             }
         )
@@ -241,30 +362,32 @@ fun SettingsItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 24.dp, vertical = 4.dp),
         colors = CardDefaults.cardColors(
             containerColor = containerColor
         ),
+        shape = MaterialTheme.shapes.large,
         onClick = { onClick?.invoke() }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(all = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Левая часть: иконка и текст
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.weight(1f)
             ) {
                 if (leadingIcon != null) {
                     Icon(
                         imageVector = leadingIcon,
                         contentDescription = title,
                         modifier = Modifier.size(24.dp),
-                        tint = contentColor
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+
                     )
                 }
 
@@ -273,30 +396,45 @@ fun SettingsItem(
                 ) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontFamily = SoraFontFamily,
+                            fontWeight = FontWeight.W600,
+                            fontSize = 16.sp,
+                            lineHeight = 24.sp
+                        ),
                         color = contentColor
                     )
                     if (subtitle != null) {
                         Text(
                             text = subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = contentColor.copy(alpha = 0.6f)
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = SoraFontFamily,
+                                fontWeight = FontWeight.W400,
+                                fontSize = 12.sp,
+                                lineHeight = 14.4.sp
+                            ),
+                            color = if (contentColor == MaterialTheme.colorScheme.error) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                contentColor.copy(alpha = 0.6f)
+                            }
                         )
                     }
                 }
             }
 
-            // Правая часть: переключатель или стрелка
-            trailingContent?.invoke() ?: run {
-                if (onClick != null) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.TwoTone.ArrowForward,
-                        contentDescription = "Перейти",
-                        modifier = Modifier.size(16.dp),
-                        tint = contentColor.copy(alpha = 0.6f)
-                    )
-                }
-            }
+            trailingContent?.invoke() ?: run {}
         }
+    }
+
+}
+
+fun openTelegram(context: Context, telegramUrl: String) {
+    try {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(telegramUrl))
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse(telegramUrl))
+        context.startActivity(webIntent)
     }
 }

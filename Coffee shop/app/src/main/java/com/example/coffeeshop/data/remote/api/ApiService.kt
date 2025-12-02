@@ -9,6 +9,7 @@ import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
 import com.example.coffeeshop.data.remote.response.FavoriteCoffeeResponse
 import com.example.coffeeshop.data.remote.response.LoginResponse
+import com.example.coffeeshop.data.remote.response.OrderResponse
 import com.example.coffeeshop.data.remote.response.RegisterResponse
 import com.example.coffeeshop.domain.CoffeeCartRequest
 import com.example.coffeeshop.domain.FavoriteCoffeeRequest
@@ -98,4 +99,8 @@ interface ApiService {
         @Header("Authorization") token: String? = null,
         @Body request: OrderRequest
     ): Response<ApiResponse>
+
+    @GET("coffee/orders/history")
+    suspend fun getOrderHistory(@Header("Authorization") token: String? = null):
+            Response<List<OrderResponse>>
 }
