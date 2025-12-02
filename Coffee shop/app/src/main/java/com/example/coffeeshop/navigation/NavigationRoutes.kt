@@ -8,9 +8,9 @@ object NavigationRoutes {
     const val DETAIL = "coffee_detail"
     const val FAVORITE = "favorite"
     const val CART = "cart"
-    const val PROFILE = "profile"
     const val ORDER = "order"
     const val ACTIVE_ORDER = "active_order"
     const val PICKUP_READY_ORDER = "pickup_ready_order"
+    const val SETTINGS = "settings"
 
 }

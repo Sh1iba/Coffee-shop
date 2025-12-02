@@ -1246,7 +1246,7 @@ fun BottomMenu(navController: NavController) {
         BottomMenuItem("Home", R.drawable.menu_home, R.drawable.selected_dot, NavigationRoutes.HOME),
         BottomMenuItem("Favorite", R.drawable.heart, R.drawable.selected_dot, NavigationRoutes.FAVORITE),
         BottomMenuItem("Cart", R.drawable.cart, R.drawable.selected_dot, NavigationRoutes.CART),
-        BottomMenuItem("Profile", R.drawable.notification, R.drawable.selected_dot, NavigationRoutes.PROFILE)
+        BottomMenuItem("Settings", R.drawable.settings_foreground, R.drawable.selected_dot, NavigationRoutes.SETTINGS)
     )
 
     val currentBackStack by navController.currentBackStackEntryAsState()

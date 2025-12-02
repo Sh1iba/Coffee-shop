@@ -28,6 +28,7 @@ import com.example.coffeeshop.presentation.screens.HomeScreen
 import com.example.coffeeshop.presentation.screens.OrderScreen
 import com.example.coffeeshop.presentation.screens.PickupReadyScreen
 import com.example.coffeeshop.presentation.screens.RegistrationScreen
+import com.example.coffeeshop.presentation.screens.SettingsScreen
 import com.example.coffeeshop.presentation.screens.SignInScreen
 import com.example.coffeeshop.presentation.screens.favorite.FavoriteCoffeeScreen
 import com.google.gson.Gson
@@ -61,7 +62,7 @@ class MainActivity : ComponentActivity() {
                                 NavigationRoutes.HOME,
                                 NavigationRoutes.FAVORITE,
                                 NavigationRoutes.CART,
-                                NavigationRoutes.PROFILE
+                                NavigationRoutes.SETTINGS
                             )) {
                             BottomMenu(navController = navController)
                         }
@@ -193,6 +194,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(NavigationRoutes.PICKUP_READY_ORDER) {
                             PickupReadyScreen(navController = navController)
+                        }
+                        composable(NavigationRoutes.SETTINGS) {
+                            SettingsScreen(navController = navController)
                         }
 
                     }
