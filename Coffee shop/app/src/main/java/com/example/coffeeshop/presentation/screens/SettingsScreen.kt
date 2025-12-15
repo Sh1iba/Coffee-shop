@@ -14,9 +14,7 @@ import androidx.compose.material.icons.automirrored.twotone.ArrowForward
 import androidx.compose.material.icons.automirrored.twotone.ExitToApp
 import androidx.compose.material.icons.twotone.*
 import androidx.compose.material3.*
-import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,83 +29,104 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import com.example.coffeeshop.R
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
-import com.example.coffeeshop.presentation.theme.colorBackgroudWhite
-import com.example.coffeeshop.presentation.theme.colorDarkOrange
-import com.example.coffeeshop.presentation.theme.colorFoundationWhite
+import com.example.coffeeshop.presentation.viewmodel.SettingsViewModel
+import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.theme.colorLightWhite
+import com.example.coffeeshop.presentation.theme.colorDarkOrange
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavController) {
+fun SettingsScreen(
+    navController: NavController,
+    onThemeChanged: (Boolean) -> Unit // Функция обновления темы из MainActivity
+) {
     val context = LocalContext.current
     val prefsManager = remember { PrefsManager(context) }
+    val viewModel = remember { SettingsViewModel(prefsManager) }
 
-    Scaffold(
-        topBar = {
-            // ВЕРХНИЙ БАР (фиксированный) как в других экранах
-            Column(
-                modifier = Modifier.background(MaterialTheme.colorScheme.background)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 68.dp, start = 24.dp, end = 24.dp, bottom = 24.dp)
-                        .height(44.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+    // Подписываемся на состояние темы из ViewModel
+    val darkModeEnabled by viewModel.darkModeState.collectAsState()
+    val notificationsEnabled by viewModel.notificationsState.collectAsState()
+
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    // Оборачиваем в тему, которая зависит от состояния
+    CoffeeShopTheme(darkTheme = darkModeEnabled) {
+        Scaffold(
+            topBar = {
+                Column(
+                    modifier = Modifier.background(MaterialTheme.colorScheme.background)
                 ) {
-                    Box(
+                    Row(
                         modifier = Modifier
-                            .size(44.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .clickable { navController.navigateUp() },
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(top = 68.dp, start = 24.dp, end = 24.dp, bottom = 24.dp)
+                            .height(44.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.leftarrow),
-                            contentDescription = "Back",
-                            modifier = Modifier.size(24.dp),
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(MaterialTheme.shapes.medium)
+                                .clickable { navController.navigateUp() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.leftarrow),
+                                contentDescription = "Back",
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+
+                        Text(
+                            text = "Настройки",
+                            fontFamily = SoraFontFamily,
+                            fontWeight = FontWeight.W600,
+                            fontSize = 20.sp,
+                            lineHeight = 30.sp,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Box(
+                            modifier = Modifier.size(44.dp)
                         )
                     }
-
-                    Text(
-                        text = "Настройки",
-                        fontFamily = SoraFontFamily,
-                        fontWeight = FontWeight.W600,
-                        fontSize = 20.sp,
-                        lineHeight = 30.sp,
-                        color = colorScheme.onBackground,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Box(
-                        modifier = Modifier.size(44.dp)
-                    )
                 }
+            },
+            containerColor = MaterialTheme.colorScheme.background
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                UserInfoSection(prefsManager)
+
+                Divider(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                )
+
+                SettingsOptionsSection(
+                    viewModel = viewModel,
+                    navController = navController,
+                    context = context,
+                    darkModeEnabled = darkModeEnabled,
+                    notificationsEnabled = notificationsEnabled,
+                    onThemeChanged = { newValue ->
+                        viewModel.toggleDarkMode(newValue)
+                        onThemeChanged(newValue) // Вызываем функцию из MainActivity
+                    },
+                    onNotificationsChanged = { newValue ->
+                        viewModel.toggleNotifications(newValue)
+                    }
+                )
             }
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            UserInfoSection(prefsManager)
-
-            Divider(
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-            )
-
-            SettingsOptionsSection(
-                prefsManager = prefsManager,
-                navController = navController,
-                context = context
-            )
         }
     }
 }
@@ -181,24 +200,15 @@ private fun UserInfoSection(prefsManager: PrefsManager) {
 
 @Composable
 private fun SettingsOptionsSection(
-    prefsManager: PrefsManager,
+    viewModel: SettingsViewModel,
     navController: NavController,
-    context: Context
+    context: Context,
+    darkModeEnabled: Boolean,
+    notificationsEnabled: Boolean,
+    onThemeChanged: (Boolean) -> Unit,
+    onNotificationsChanged: (Boolean) -> Unit
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
-
-    // Сохраняем состояние свитчей через rememberSaveable
-    var darkModeEnabled by rememberSaveable { mutableStateOf(prefsManager.getBoolean("dark_mode", false)) }
-    var notificationsEnabled by rememberSaveable { mutableStateOf(prefsManager.getBoolean("notifications", true)) }
-
-    // При изменении состояния сохраняем в PrefsManager
-    LaunchedEffect(darkModeEnabled) {
-        prefsManager.saveBoolean("dark_mode", darkModeEnabled)
-    }
-
-    LaunchedEffect(notificationsEnabled) {
-        prefsManager.saveBoolean("notifications", notificationsEnabled)
-    }
 
     // Уведомления
     SettingsItem(
@@ -208,7 +218,9 @@ private fun SettingsOptionsSection(
         trailingContent = {
             Switch(
                 checked = notificationsEnabled,
-                onCheckedChange = { notificationsEnabled = it },
+                onCheckedChange = { newValue ->
+                    onNotificationsChanged(newValue)
+                },
                 modifier = Modifier.widthIn(max = 52.dp),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = colorDarkOrange,
@@ -228,7 +240,9 @@ private fun SettingsOptionsSection(
         trailingContent = {
             Switch(
                 checked = darkModeEnabled,
-                onCheckedChange = { darkModeEnabled = it },
+                onCheckedChange = { newValue ->
+                    onThemeChanged(newValue) // Вызываем функцию обновления темы
+                },
                 modifier = Modifier.widthIn(max = 52.dp),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = colorDarkOrange,
@@ -239,7 +253,6 @@ private fun SettingsOptionsSection(
             )
         }
     )
-
 
     SettingsItem(
         title = "История заказов",
@@ -282,12 +295,13 @@ private fun SettingsOptionsSection(
         subtitle = "Завершить текущую сессию",
         leadingIcon = Icons.AutoMirrored.TwoTone.ExitToApp,
         trailingContent = null,
-        containerColor = MaterialTheme.colorScheme.surface, // Фон белый как у всех
-        contentColor = MaterialTheme.colorScheme.error, // Только для заголовка
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.error,
         onClick = {
             showLogoutDialog = true
         }
     )
+
     // Диалог подтверждения выхода
     if (showLogoutDialog) {
         AlertDialog(
@@ -298,7 +312,8 @@ private fun SettingsOptionsSection(
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.W600,
                     fontSize = 20.sp,
-                    lineHeight = 30.sp
+                    lineHeight = 30.sp,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             },
             text = {
@@ -307,12 +322,14 @@ private fun SettingsOptionsSection(
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.W400,
                     fontSize = 14.sp,
-                    lineHeight = 24.sp
+                    lineHeight = 24.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
+                        val prefsManager = PrefsManager(context)
                         prefsManager.logout()
                         navController.navigate(NavigationRoutes.SIGN_IN) {
                             popUpTo(NavigationRoutes.HOME) {
@@ -341,10 +358,14 @@ private fun SettingsOptionsSection(
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.W500,
                         fontSize = 16.sp,
-                        lineHeight = 24.sp
+                        lineHeight = 24.sp,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -387,7 +408,6 @@ fun SettingsItem(
                         contentDescription = title,
                         modifier = Modifier.size(24.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
-
                     )
                 }
 
@@ -423,10 +443,18 @@ fun SettingsItem(
                 }
             }
 
-            trailingContent?.invoke() ?: run {}
+            trailingContent?.invoke() ?: run {
+                if (onClick != null) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.TwoTone.ArrowForward,
+                        contentDescription = "Перейти",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+            }
         }
     }
-
 }
 
 fun openTelegram(context: Context, telegramUrl: String) {

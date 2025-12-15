@@ -1,12 +1,12 @@
 package com.example.coffeeshop
 
 import CartScreen
-import com.example.coffeeshop.data.managers.PrefsManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -14,28 +14,19 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.coffeeshop.data.managers.PrefsManager
 import com.example.coffeeshop.data.remote.response.CoffeeCartResponse
 import com.example.coffeeshop.data.remote.response.CoffeeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
 import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
-import com.example.coffeeshop.presentation.screens.ActiveOrderScreen
-import com.example.coffeeshop.presentation.screens.BottomMenu
-import com.example.coffeeshop.presentation.screens.CoffeeDetailScreen
+import com.example.coffeeshop.presentation.screens.*
+import com.example.coffeeshop.presentation.screens.favorite.FavoriteCoffeeScreen
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.ui.screens.OnboardingScreen
-import com.example.coffeeshop.presentation.screens.HomeScreen
-import com.example.coffeeshop.presentation.screens.OrderHistoryScreen
-import com.example.coffeeshop.presentation.screens.OrderScreen
-import com.example.coffeeshop.presentation.screens.PickupReadyScreen
-import com.example.coffeeshop.presentation.screens.RegistrationScreen
-import com.example.coffeeshop.presentation.screens.SettingsScreen
-import com.example.coffeeshop.presentation.screens.SignInScreen
-import com.example.coffeeshop.presentation.screens.favorite.FavoriteCoffeeScreen
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.net.URLDecoder
-
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,7 +44,13 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            CoffeeShopTheme {
+            // Ключевое изменение: создаем состояние темы
+            var darkThemeEnabled by remember {
+                mutableStateOf(prefsManager.getBoolean(PrefsManager.KEY_DARK_MODE, false))
+            }
+
+            // Оборачиваем ВСЕ приложение в тему с этим состоянием
+            CoffeeShopTheme(darkTheme = darkThemeEnabled) {
                 val navController = rememberNavController()
 
                 Scaffold(
@@ -154,7 +151,6 @@ class MainActivity : ComponentActivity() {
                         composable(NavigationRoutes.CART) {
                             CartScreen(navController)
                         }
-                        // MainActivity.kt (обновленная навигация)
                         composable(
                             route = "${NavigationRoutes.ORDER}?selectedItems={selectedItems}&totalPrice={totalPrice}",
                             arguments = listOf(
@@ -197,12 +193,18 @@ class MainActivity : ComponentActivity() {
                             PickupReadyScreen(navController = navController)
                         }
                         composable(NavigationRoutes.SETTINGS) {
-                            SettingsScreen(navController = navController)
+                            // Передаем функцию обновления темы в SettingsScreen
+                            SettingsScreen(
+                                navController = navController,
+                                onThemeChanged = { newTheme ->
+                                    darkThemeEnabled = newTheme
+                                    prefsManager.saveBoolean(PrefsManager.KEY_DARK_MODE, newTheme)
+                                }
+                            )
                         }
                         composable(NavigationRoutes.ORDER_HISTORY) {
                             OrderHistoryScreen(navController = navController)
                         }
-
                     }
                 }
             }

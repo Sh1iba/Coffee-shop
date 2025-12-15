@@ -46,6 +46,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
@@ -115,6 +116,7 @@ import com.example.coffeeshop.presentation.theme.colorBackgroudWhite
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.theme.colorGrey
 import com.example.coffeeshop.presentation.theme.colorGreyWhite
+import com.example.coffeeshop.presentation.theme.colorWhiteText
 import com.example.coffeeshop.presentation.viewmodel.CartViewModel
 import com.example.coffeeshop.presentation.viewmodel.HomeViewModel
 import com.example.coffeeshop.presentation.viewmodel.LocationViewModel
@@ -161,7 +163,7 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(color = colorBackgroudWhite)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         SecondHalfOfHomeScreen(viewModel, navController, cartViewModel)
 
@@ -879,7 +881,7 @@ fun CoffeeCategoryRow(
                 modifier = Modifier
                     .padding(end = 8.dp)
                     .background(
-                        color = if (item == selectedItem.value) colorDarkOrange else Color(0xFFF5F5F5),
+                        color = if (item == selectedItem.value) colorDarkOrange else MaterialTheme.colorScheme.surfaceTint,
                         shape = RoundedCornerShape(6.dp)
                     )
                     .padding(
@@ -905,7 +907,7 @@ fun CoffeeCategoryRow(
                     fontWeight = if (item == selectedItem.value) FontWeight.W600 else FontWeight.W400,
                     fontSize = fontSize,
                     lineHeight = 21.sp,
-                    color = if (item == selectedItem.value) Color.White else Color(0xFF313131),
+                    color = if (item == selectedItem.value) Color.White else MaterialTheme.colorScheme.outline,
                 )
             }
         }
@@ -988,7 +990,7 @@ fun CoffeeItem(
         }
     }
 
-    Card(
+    Surface(
         modifier = Modifier
             .width(156.dp)
             .height(238.dp)
@@ -1005,9 +1007,10 @@ fun CoffeeItem(
                             "&favoriteSize="
                 )
             },
+        color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        tonalElevation = 0.dp,
+        shadowElevation = 1.dp
     ) {
         Column(
             modifier = Modifier
@@ -1019,7 +1022,6 @@ fun CoffeeItem(
                     .fillMaxWidth()
                     .height(125.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFF2F2F2))
             ) {
                 Image(
                     painter = imagePainter,
@@ -1036,7 +1038,7 @@ fun CoffeeItem(
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.W600,
                 fontSize = 16.sp,
-                color = Color(0xFF2F2D2C),
+                color = MaterialTheme.colorScheme.outline,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth()
@@ -1049,7 +1051,7 @@ fun CoffeeItem(
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.W400,
                 fontSize = 12.sp,
-                color = Color(0xFF9B9B9B),
+                color = MaterialTheme.colorScheme.outlineVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth()
@@ -1067,7 +1069,7 @@ fun CoffeeItem(
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.W600,
                     fontSize = 18.sp,
-                    color = Color(0xFF2F2D2C)
+                    color = MaterialTheme.colorScheme.outline
                 )
 
                 Box(
@@ -1249,38 +1251,36 @@ fun BottomMenu(navController: NavController) {
         BottomMenuItem("Settings", R.drawable.settings_foreground, R.drawable.selected_dot, NavigationRoutes.SETTINGS)
     )
 
-    val currentBackStack by navController.currentBackStackEntryAsState()
-    val currentDestination = currentBackStack?.destination
-    val currentRoute = currentDestination?.route
+    val currentRoute =
+        navController.currentBackStackEntryAsState().value?.destination?.route
 
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
 
-    val bottomBarHeight = if (isTablet) 110.dp else 99.dp
+    val height = if (isTablet) 110.dp else 99.dp
     val horizontalPadding = if (isTablet) 48.dp else 24.dp
     val verticalPadding = if (isTablet) 20.dp else 24.dp
     val cornerRadius = if (isTablet) 28.dp else 24.dp
 
-    BottomAppBar(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(bottomBarHeight)
-            .background(
-                color = Color.White,
-                shape = RoundedCornerShape(
-                    topStart = cornerRadius,
-                    topEnd = cornerRadius
-                )
-            ),
-        containerColor = Color.White,
-        contentPadding = PaddingValues(
-            horizontal = horizontalPadding,
-            vertical = verticalPadding
-        )
+            .height(height),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(
+            topStart = cornerRadius,
+            topEnd = cornerRadius
+        ),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .padding(
+                    horizontal = horizontalPadding,
+                    vertical = verticalPadding
+                ),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1304,6 +1304,7 @@ fun BottomMenu(navController: NavController) {
         }
     }
 }
+
 
 @Preview(showBackground = true, showSystemUi = true, name = "pre")
 @Composable

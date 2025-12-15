@@ -303,7 +303,7 @@ fun OrderDeliveredMessage() {
 }
 
 @Composable
-fun ActiveOrderButton(  // Изменил имя
+fun ActiveOrderButton(
     isOrderDelivered: Boolean,
     onPickupClick: () -> Unit
 ) {
