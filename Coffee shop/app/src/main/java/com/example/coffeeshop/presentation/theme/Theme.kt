@@ -29,8 +29,9 @@ private val LightColorScheme = lightColorScheme(
     //Текст серый
     outlineVariant = colorGrayText, //Color(0xFFa2a2a2)
 
-    surfaceTint = colorLightWhiteRow//Color(0xFFf5f5f5)
+    surfaceTint = colorLightWhiteRow, //Color(0xFFf5f5f5)
 
+    primaryContainer = colorSelectOrange,// Color(0xFFf9f2ed)
 //    onBackground = colorFoundationGrey,
 //    surface = colorLightWhite,
 //    onSurface = colorFoundationGrey,
@@ -69,7 +70,9 @@ private val DarkColorScheme = darkColorScheme(
     //Текст серый
     outlineVariant = colorGrayText, //Color(0xFFa2a2a2)
 
-    surfaceTint = colorLightDark//Color(0xFFf5f5f5)
+    surfaceTint = colorLightDark,//Color(0xFFf5f5f5)
+
+    primaryContainer = colorSelectGray,
 
 )
 

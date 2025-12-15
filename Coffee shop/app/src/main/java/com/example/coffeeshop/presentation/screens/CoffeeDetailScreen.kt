@@ -104,7 +104,6 @@ fun CoffeeDetailScreen(
 
     Scaffold(
         topBar = {
-            // ВЕРХНИЙ БАР (фиксированный)
             Column(
                 modifier = Modifier.background(MaterialTheme.colorScheme.background)
             ) {
@@ -127,6 +126,7 @@ fun CoffeeDetailScreen(
                             painter = painterResource(id = com.example.coffeeshop.R.drawable.leftarrow),
                             contentDescription = "Back",
                             modifier = Modifier.size(24.dp),
+                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.outline)
                         )
                     }
 
@@ -161,7 +161,7 @@ fun CoffeeDetailScreen(
                                 painter = painterResource(id = com.example.coffeeshop.R.drawable.heart),
                                 contentDescription = "Favorite",
                                 modifier = Modifier.size(24.dp),
-                                colorFilter = ColorFilter.tint(Color(0xFF242424))
+                                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.outline)
                             )
                         }
                     }
@@ -391,7 +391,7 @@ fun SizeOption(
     onClick: () -> Unit
 ) {
     val backgroundColor = if (isSelected) {
-        colorSelectOrange
+        MaterialTheme.colorScheme.primaryContainer
     } else {
         Color.Transparent
     }
@@ -474,7 +474,7 @@ fun BottomOrderPanel(
                     .width(150.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(
-                        if (isInCart) Color.White else colorDarkOrange
+                        if (isInCart) MaterialTheme.colorScheme.primaryContainer else colorDarkOrange
                     )
                     .border(
                         width = if (isInCart) 1.dp else 0.dp,

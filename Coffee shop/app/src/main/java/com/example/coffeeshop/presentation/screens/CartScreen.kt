@@ -352,7 +352,7 @@ fun CartItemCard(
                     }
                 }
             },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Row(
@@ -410,15 +410,17 @@ fun CartItemCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.name,
+                    fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.W600,
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    color = colorScheme.outline
                 )
 
                 Text(
                     text = "Размер: ${item.selectedSize}",
                     fontWeight = FontWeight.W500,
                     fontSize = 13.sp,
-                    color = Color(0xFF2F2D2C),
+                    color = colorScheme.outline,
                     modifier = Modifier.padding(bottom = 2.dp)
                 )
 
@@ -454,7 +456,8 @@ fun CartItemCard(
                         text = item.quantity.toString(),
                         fontWeight = FontWeight.W500,
                         modifier = Modifier.width(24.dp),
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        color = colorScheme.outline
                     )
 
                     IconButton(

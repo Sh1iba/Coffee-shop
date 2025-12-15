@@ -22,6 +22,11 @@ val colorWhiteText = Color(0xFFe1e3e6)
 
 val colorGrayText = Color(0xFFa2a2a2)
 
+
+//типо выбранный оранжевый
+val colorSelectOrange = Color(0xFFf9f2ed)
+
+val colorSelectGray = Color(0xFF5D5D5D)
 //текст серый
 //val colorGrayText = Color(0xFF9B9B9B)
 
@@ -36,4 +41,4 @@ val colorLightRecGrey = Color(0xFFEDEDED)
 val colorDarkOrange = Color(0xFFC67C4E)
 val colorGrey = Color(0xFFA2A2A2)
 val colorGreyWhite = Color(0xFFD8D8D8)
-val colorSelectOrange = Color(0xFFf9f2ed)
+

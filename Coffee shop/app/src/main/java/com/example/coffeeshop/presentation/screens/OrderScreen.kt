@@ -40,6 +40,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -100,6 +101,7 @@ import com.example.coffeeshop.presentation.theme.SoraFontFamily
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.theme.colorFoundationGrey
 import com.example.coffeeshop.presentation.theme.colorLightGrey
+import com.example.coffeeshop.presentation.theme.colorLightWhite
 import com.example.coffeeshop.presentation.theme.colorSelectOrange
 import com.example.coffeeshop.presentation.viewmodel.CartViewModel
 import com.example.coffeeshop.presentation.viewmodel.CoffeeDetailViewModel
@@ -383,20 +385,20 @@ fun AddressConfirmationDialog(
                 Text(
                     text = "Адрес доставки:",
                     fontSize = 14.sp,
-                    color = Color.Gray,
+                    color = colorScheme.outlineVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 Text(
                     text = address,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.W500,
-                    color = Color.Black,
+                    color = colorScheme.outlineVariant,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
                 Text(
                     text = "Всё верно?",
                     fontSize = 14.sp,
-                    color = Color.Gray
+                    color = colorScheme.outlineVariant
                 )
             }
         },
@@ -407,7 +409,11 @@ fun AddressConfirmationDialog(
                     containerColor = colorDarkOrange
                 )
             ) {
-                Text("Да, всё верно")
+                Text(
+                    text = "Да, всё верно",
+                    fontFamily = SoraFontFamily,
+                    color = Color.White
+                )
             }
         },
         dismissButton = {
@@ -450,7 +456,7 @@ fun OrderContent(
             modifier = Modifier
                 .padding(top = 24.dp)
                 .padding(horizontal = 24.dp)
-                .background(Color(0xFFF5F5F5), shape = RoundedCornerShape(12))
+                .background(colorScheme.surface, shape = RoundedCornerShape(12))
                 .fillMaxWidth()
                 .height(43.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -461,7 +467,7 @@ fun OrderContent(
                 modifier = Modifier
                     .padding(all = 4.dp)
                     .background(
-                        color = if (selectedButton == "Доставка") colorDarkOrange else Color(0xFFF5F5F5),
+                        color = if (selectedButton == "Доставка") colorDarkOrange else colorScheme.surface,
                         shape = RoundedCornerShape(10.dp)
                     )
                     .clickable { onSelectedButtonChange("Доставка") }
@@ -474,7 +480,7 @@ fun OrderContent(
                     fontWeight = if (selectedButton == "Доставка") FontWeight.W600 else FontWeight.W400,
                     fontSize = 16.sp,
                     lineHeight = 21.sp,
-                    color = if (selectedButton == "Доставка") Color.White else Color(0xFF313131),
+                    color = if (selectedButton == "Доставка") Color.White else colorScheme.outline,
                     modifier = Modifier
                         .align(Alignment.Center)
                         .padding(horizontal = 24.dp, vertical = 8.dp)
@@ -485,7 +491,7 @@ fun OrderContent(
                 modifier = Modifier
                     .padding(all = 4.dp)
                     .background(
-                        color = if (selectedButton == "Забрать") colorDarkOrange else Color(0xFFF5F5F5),
+                        color = if (selectedButton == "Забрать") colorDarkOrange else colorScheme.surface,
                         shape = RoundedCornerShape(10.dp)
                     )
                     .clickable { onSelectedButtonChange("Забрать") }
@@ -498,7 +504,7 @@ fun OrderContent(
                     fontWeight = if (selectedButton == "Забрать") FontWeight.W600 else FontWeight.W400,
                     fontSize = 16.sp,
                     lineHeight = 21.sp,
-                    color = if (selectedButton == "Забрать") Color.White else Color(0xFF313131),
+                    color = if (selectedButton == "Забрать") Color.White else colorScheme.outline,
                     modifier = Modifier
                         .align(Alignment.Center)
                         .padding(horizontal = 24.dp, vertical = 8.dp)
@@ -528,7 +534,7 @@ fun OrderContent(
                 Column {
                     Text(
                         text = if (parsedAddress.mainAddress.isNotEmpty()) parsedAddress.mainAddress else "Выберите адрес",
-                        color = Color.Black,
+                        color = colorScheme.outline,
                         fontWeight = FontWeight.W600,
                         fontSize = 16.sp,
                         maxLines = 1,
@@ -539,7 +545,7 @@ fun OrderContent(
                     if (parsedAddress.addressDetails.isNotEmpty()) {
                         Text(
                             text = parsedAddress.addressDetails,
-                            color = Color.Gray,
+                            color = colorScheme.outlineVariant,
                             fontSize = 14.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -623,7 +629,7 @@ fun OrderContent(
 
                 Divider(
                     modifier = Modifier.padding(horizontal = 17.dp),
-                    color = Color(0xFFE0E0E0),
+                    color = colorScheme.surfaceTint,
                     thickness = 1.dp
                 )
             }
@@ -659,7 +665,7 @@ fun OrderContent(
             modifier = Modifier
                 .padding(vertical = 16.dp)
                 .fillMaxWidth(),
-            color = colorSelectOrange,
+            color = colorScheme.surfaceTint,
             thickness = 4.dp
         )
 
@@ -809,7 +815,11 @@ fun AddressNoteDialog(
                 ),
                 modifier = Modifier.padding(start = 8.dp)
             ) {
-                Text("Сохранить")
+                Text(
+                    text = "Сохранить",
+                    fontFamily = SoraFontFamily,
+                    color = Color.White
+                )
             }
         },
         dismissButton = {
@@ -848,7 +858,8 @@ fun OrderTopBar(onBackClick: () -> Unit) {
                 Image(
                     painter = painterResource(id = R.drawable.leftarrow),
                     contentDescription = "Back",
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.outline)
                 )
             }
 
@@ -880,7 +891,7 @@ fun BottomOrderPanel(
     Surface(
         modifier = Modifier
             .fillMaxWidth(),
-        color = Color.White,
+        color = colorScheme.surface,
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 12.dp
     ) {
@@ -916,16 +927,16 @@ fun BottomOrderPanel(
                             text = "Наличные/Кошелек",
                             fontWeight = FontWeight.W600,
                             fontSize = 16.sp,
-                            color = Color.Black
+                            color = colorScheme.outline
                         )
                     }
                 }
 
-                Icon(
+                Image(
                     painter = painterResource(id = R.drawable.img),
                     contentDescription = null,
-                    tint = Color.Black,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.outline)
                 )
             }
 

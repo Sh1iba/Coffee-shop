@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -38,19 +39,17 @@ import com.example.coffeeshop.presentation.theme.colorDarkOrange
 @Composable
 fun SettingsScreen(
     navController: NavController,
-    onThemeChanged: (Boolean) -> Unit // Функция обновления темы из MainActivity
+    onThemeChanged: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
     val prefsManager = remember { PrefsManager(context) }
     val viewModel = remember { SettingsViewModel(prefsManager) }
 
-    // Подписываемся на состояние темы из ViewModel
     val darkModeEnabled by viewModel.darkModeState.collectAsState()
     val notificationsEnabled by viewModel.notificationsState.collectAsState()
 
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    // Оборачиваем в тему, которая зависит от состояния
     CoffeeShopTheme(darkTheme = darkModeEnabled) {
         Scaffold(
             topBar = {
@@ -76,6 +75,7 @@ fun SettingsScreen(
                                 painter = painterResource(id = R.drawable.leftarrow),
                                 contentDescription = "Back",
                                 modifier = Modifier.size(24.dp),
+                                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.outline)
                             )
                         }
 
@@ -120,7 +120,7 @@ fun SettingsScreen(
                     notificationsEnabled = notificationsEnabled,
                     onThemeChanged = { newValue ->
                         viewModel.toggleDarkMode(newValue)
-                        onThemeChanged(newValue) // Вызываем функцию из MainActivity
+                        onThemeChanged(newValue)
                     },
                     onNotificationsChanged = { newValue ->
                         viewModel.toggleNotifications(newValue)
@@ -145,7 +145,7 @@ private fun UserInfoSection(prefsManager: PrefsManager) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(colorLightWhite)
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 16.dp, vertical = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)

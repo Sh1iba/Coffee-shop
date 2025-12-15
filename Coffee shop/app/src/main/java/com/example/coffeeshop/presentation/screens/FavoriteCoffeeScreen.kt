@@ -228,7 +228,7 @@ fun CoffeeFavoriteCard(
                             "&favoriteSize=$savedSize"
                 )
             },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Row(
@@ -284,14 +284,14 @@ fun CoffeeFavoriteCard(
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.W600,
                     fontSize = 18.sp,
-                    color = colorScheme.onBackground
+                    color = colorScheme.outline
                 )
                 Text(
                     text = coffee.type.type,
                     fontWeight = FontWeight.W400,
                     fontSize = 12.sp,
                     lineHeight = 14.4.sp,
-                    color = colorLightGrey,
+                    color = colorScheme.outlineVariant,
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -301,7 +301,7 @@ fun CoffeeFavoriteCard(
                     fontFamily = SoraFontFamily,
                     fontWeight = FontWeight.W500,
                     fontSize = 13.sp,
-                    color = Color(0xFF2F2D2C),
+                    color = colorScheme.outline,
                     modifier = Modifier.padding(bottom = 2.dp)
                 )
 
@@ -321,7 +321,7 @@ fun CoffeeFavoriteCard(
                     .clickable {
                         onRemove()
                     }
-                    .background(Color(0xFFF5F5F5)),
+                    .background(colorScheme.surfaceTint),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

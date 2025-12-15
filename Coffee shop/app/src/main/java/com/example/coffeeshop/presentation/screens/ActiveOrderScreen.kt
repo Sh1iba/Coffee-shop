@@ -6,11 +6,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -52,12 +54,10 @@ fun ActiveOrderScreen(
 
     val state by viewModel.state.collectAsState()
 
-    // Обработка событий навигации - как в PickupReadyScreen
     LaunchedEffect(Unit) {
         viewModel.events.collectLatest { event ->
             when (event) {
                 is ActiveOrderEvent.NavigateToHome -> {
-                    // Возврат на главный экран с очисткой стека
                     navController.navigate(NavigationRoutes.HOME) {
                         popUpTo(0) { inclusive = true }
                     }
@@ -70,11 +70,10 @@ fun ActiveOrderScreen(
     ActiveOrderContent(
         state = state,
         onBackClick = {
-            // При нажатии кнопки "Назад" - возврат на главный
             viewModel.onEvent(ActiveOrderEvent.NavigateToHome)
         },
         onPickupClick = {
-            // При нажатии кнопки "Забрать заказ" - возврат на главный
+
             viewModel.onEvent(ActiveOrderEvent.NavigateToHome)
         }
     )
@@ -84,7 +83,7 @@ fun ActiveOrderScreen(
 fun ActiveOrderContent(
     state: ActiveOrderState,
     onBackClick: () -> Unit,
-    onPickupClick: () -> Unit  // Добавлен параметр как в PickupReadyScreen
+    onPickupClick: () -> Unit
 ) {
     val infiniteTransition = rememberInfiniteTransition()
     val courierProgress by infiniteTransition.animateFloat(
@@ -155,7 +154,7 @@ fun ActiveOrderContent(
 
         OrderStatusPanel(
             state = state,
-            onPickupClick = onPickupClick,  // Передаем обработчик
+            onPickupClick = onPickupClick,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
@@ -171,13 +170,15 @@ fun ActiveOrderContent(
 @Composable
 fun OrderStatusPanel(
     state: ActiveOrderState,
-    onPickupClick: () -> Unit,  // Добавлен параметр
+    onPickupClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
+            .background(
+                colorScheme.surface,
+                RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
             .padding(24.dp)
     ) {
         Column(
@@ -189,7 +190,7 @@ fun OrderStatusPanel(
                 fontSize = 22.sp,
                 fontFamily = SoraFontFamily,
                 fontWeight = FontWeight.W600,
-                color = Color.Black
+                color = colorScheme.outline
             )
 
             Spacer(Modifier.height(12.dp))
@@ -233,7 +234,7 @@ fun DeliveryProgress(progress: Float) {
         Text(
             text = "Статус доставки:",
             fontSize = 14.sp,
-            color = Color.Gray,
+            color = colorScheme.outlineVariant,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
@@ -321,7 +322,9 @@ fun ActiveOrderButton(
             Text(
                 text = "Забрать заказ",
                 fontSize = 18.sp,
-                fontWeight = FontWeight.W600
+                fontWeight = FontWeight.W600,
+                fontFamily = SoraFontFamily,
+                color = Color.White
             )
         }
     } else {
@@ -341,7 +344,7 @@ fun ActiveOrderButton(
                 text = "Заказ в пути...",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.W600,
-                color = Color.Gray
+                color = colorScheme.outlineVariant
             )
         }
     }
@@ -357,12 +360,14 @@ fun BackButton(
             onClick = onBackClick,
             modifier = Modifier
                 .size(44.dp)
-                .background(Color.White, RoundedCornerShape(12.dp))
+                .background(colorScheme.surface,
+                    RoundedCornerShape(12.dp))
         ) {
             Image(
                 painter = painterResource(id = R.drawable.leftarrow),
                 contentDescription = "Назад",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.outline)
             )
         }
     }

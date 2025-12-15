@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -142,7 +143,8 @@ fun OrderStatusPanel(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
+            .background(colorScheme.surface,
+                RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
             .padding(24.dp)
     ) {
         Column(
@@ -175,7 +177,7 @@ fun PreparingOrderContent(state: PickupOrderState) {
             fontSize = 22.sp,
             fontFamily = SoraFontFamily,
             fontWeight = FontWeight.W600,
-            color = Color.Black
+            color = colorScheme.outline
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -267,7 +269,7 @@ fun OrderReadyContent(state: PickupOrderState) {
             fontSize = 22.sp,
             fontFamily = SoraFontFamily,
             fontWeight = FontWeight.W600,
-            color = Color.Black
+            color = colorScheme.outline
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -280,14 +282,14 @@ fun OrderReadyContent(state: PickupOrderState) {
                 text = "Номер заказа: ${state.orderNumber}",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.W500,
-                color = Color.Black,
+                color = colorScheme.outline,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
 
             Text(
                 text = "Адрес кофейни: ул. Кофейная, д. 15",
                 fontSize = 14.sp,
-                color = Color.Gray,
+                color = colorScheme.outlineVariant,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -321,7 +323,9 @@ fun OrderActionButton(
             Text(
                 text = "Забрать заказ",
                 fontSize = 18.sp,
-                fontWeight = FontWeight.W600
+                fontWeight = FontWeight.W600,
+                fontFamily = SoraFontFamily,
+                color = Color.White
             )
         }
     } else {
@@ -341,7 +345,7 @@ fun OrderActionButton(
                 text = "Заказ готовится...",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.W600,
-                color = Color.Gray
+                color = colorScheme.outlineVariant
             )
         }
     }
