@@ -107,7 +107,7 @@ fun SignInScreen(navController: NavController) {
                     fontWeight = FontWeight.W600,
                     fontSize = 20.sp,
                     lineHeight = 24.sp,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.outline,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .wrapContentSize()
@@ -133,7 +133,7 @@ fun SignInScreen(navController: NavController) {
                 fontWeight = FontWeight.W400,
                 fontSize = 16.sp,
                 lineHeight = 24.sp,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(24.dp)
@@ -170,7 +170,7 @@ fun SignInScreen(navController: NavController) {
                 fontSize = 16.sp,
                 lineHeight = 24.sp,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier
                     .width(62.dp)
                     .height(24.dp)
@@ -296,7 +296,7 @@ fun SignInScreen(navController: NavController) {
                     text = buildAnnotatedString {
                         withStyle(
                             style = SpanStyle(
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.outline
                             )
                         ) {
                             append("У вас нет учетной записи? ")
