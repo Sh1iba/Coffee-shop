@@ -49,9 +49,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.coffeeshop.R
-import com.example.coffeeshop.data.managers.PrefsManager
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.coffeeshop.navigation.NavigationRoutes
-import com.example.coffeeshop.data.managers.ErrorParser
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.theme.colorLightGrey
@@ -64,13 +63,7 @@ fun SignInScreen(navController: NavController) {
 
     CoffeeShopTheme() {
         val context = LocalContext.current
-
-        val viewModel = remember {
-            SignInViewModel(
-                prefsManager = PrefsManager(context),
-                errorParser = ErrorParser()
-            )
-        }
+        val viewModel: SignInViewModel = hiltViewModel()
 
         val state by viewModel.uiState.collectAsState()
 

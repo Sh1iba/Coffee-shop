@@ -2,11 +2,13 @@ package com.example.coffeeshop.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
-import com.example.coffeeshop.data.remote.response.FavoriteCoffeeResponse
-import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.data.remote.response.FavoriteProductResponse
+import com.example.coffeeshop.data.remote.response.ProductResponse
+import com.example.coffeeshop.data.remote.response.ProductVariantResponse
+import com.example.coffeeshop.data.repository.CartRepository
+import com.example.coffeeshop.data.repository.FavoriteRepository
+import com.example.coffeeshop.data.repository.ProductRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -15,19 +17,20 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-
-class CoffeeDetailViewModel(
-    internal val repository: CoffeeRepository,
-    private val prefsManager: PrefsManager,
-    private val cartViewModel: CartViewModel
+@HiltViewModel
+class CoffeeDetailViewModel @Inject constructor(
+    private val productRepository: ProductRepository,
+    private val favoriteRepository: FavoriteRepository,
+    private val cartRepository: CartRepository
 ) : ViewModel() {
 
-    private val _coffee = MutableStateFlow<CoffeeResponse?>(null)
-    val coffee: StateFlow<CoffeeResponse?> = _coffee.asStateFlow()
+    private val _coffee = MutableStateFlow<ProductResponse?>(null)
+    val coffee: StateFlow<ProductResponse?> = _coffee.asStateFlow()
 
-    private val _favorites = MutableStateFlow<List<FavoriteCoffeeResponse>>(emptyList())
-    val favorites: StateFlow<List<FavoriteCoffeeResponse>> = _favorites.asStateFlow()
+    private val _favorites = MutableStateFlow<List<FavoriteProductResponse>>(emptyList())
+    val favorites: StateFlow<List<FavoriteProductResponse>> = _favorites.asStateFlow()
 
     private val _imageBytes = MutableStateFlow<ByteArray?>(null)
     val imageBytes: StateFlow<ByteArray?> = _imageBytes.asStateFlow()
@@ -42,110 +45,56 @@ class CoffeeDetailViewModel(
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     val isFavoriteWithCurrentSize: StateFlow<Boolean> = combine(
-        _coffee,
-        _selectedSize,
-        _favorites
-    ) { coffee, selectedSize, favorites ->
-        if (coffee == null || selectedSize == null) false
-        else favorites.any { it.id == coffee.id && it.selectedSize == selectedSize }
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        false
-    )
+        _coffee, _selectedSize, _favorites
+    ) { product, selectedSize, favorites ->
+        if (product == null || selectedSize == null) false
+        else favorites.any { it.id == product.id && it.selectedSize == selectedSize }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val availableSizes: StateFlow<List<ProductVariantResponse>> = _coffee
+        .map { it?.sizes ?: emptyList() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-
-    val availableSizes: StateFlow<List<CoffeeSizeResponse>> = _coffee
-        .asStateFlow()
-        .map { coffee ->
-            coffee?.sizes ?: emptyList()
-        }
-        .stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            emptyList()
-        )
-
-    val currentPrice: StateFlow<String> = combine(
-        _coffee,
-        _selectedSize
-    ) { coffee, selectedSize ->
-        if (coffee == null) return@combine "₽0.00"
-
-        val sizeToUse = selectedSize ?: coffee.sizes.firstOrNull()?.size ?: "M"
-
-        val sizePrice = coffee.sizes.find { it.size == sizeToUse }?.price ?: 0f
+    val currentPrice: StateFlow<String> = combine(_coffee, _selectedSize) { product, selectedSize ->
+        if (product == null) return@combine "₽0.00"
+        val sizeToUse = selectedSize ?: product.sizes.firstOrNull()?.size ?: "M"
+        val sizePrice = product.sizes.find { it.size == sizeToUse }?.price ?: 0f
         "₽${"%.2f".format(sizePrice)}"
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        "₽0.00"
-    )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "₽0.00")
 
     fun checkIfInCartWithCurrentSize() {
         viewModelScope.launch {
-            val currentCoffee = _coffee.value
-            val currentSize = _selectedSize.value
-            if (currentCoffee != null && currentSize != null) {
-                val isInCart = cartViewModel.checkIfInCart(currentCoffee.id, currentSize)
-                _isInCartWithCurrentSize.value = isInCart
-            } else {
-                _isInCartWithCurrentSize.value = false
-            }
+            val currentProduct = _coffee.value ?: return@launch
+            val currentSize = _selectedSize.value ?: return@launch
+            _isInCartWithCurrentSize.value = cartRepository.isInCart(currentProduct.id, currentSize)
         }
     }
 
-    fun setCoffee(coffee: CoffeeResponse, favoriteSize: String = "") {
-        _coffee.value = coffee
-
-        val initialSize = if (favoriteSize.isNotEmpty()) {
-            favoriteSize
-        } else {
-            coffee.sizes.find { it.size == "M" }?.size ?: coffee.sizes.firstOrNull()?.size
-        }
-
-        _selectedSize.value = initialSize
-
+    fun setCoffee(product: ProductResponse, favoriteSize: String = "") {
+        _coffee.value = product
+        _selectedSize.value = if (favoriteSize.isNotEmpty()) favoriteSize
+        else product.sizes.find { it.size == "M" }?.size ?: product.sizes.firstOrNull()?.size
         loadFavorites()
         checkIfInCartWithCurrentSize()
     }
 
     private fun loadFavorites() {
         viewModelScope.launch {
-            val token = prefsManager.getToken() ?: return@launch
-            try {
-                val favorites = repository.getFavorites(token)
-                _favorites.value = favorites
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            _favorites.value = favoriteRepository.getFavorites()
         }
     }
 
     fun toggleFavorite() {
         viewModelScope.launch {
-            val currentCoffee = _coffee.value ?: return@launch
-            val token = prefsManager.getToken() ?: return@launch
-            val currentSelectedSize = _selectedSize.value ?: return@launch
-
+            val currentProduct = _coffee.value ?: return@launch
+            val currentSize = _selectedSize.value ?: return@launch
             _isLoading.value = true
             try {
-                val isCurrentlyFavorite = isFavoriteWithCurrentSize.value
-
-                if (isCurrentlyFavorite) {
-                    val success = repository.removeFromFavorites(token, currentCoffee.id, currentSelectedSize)
-                    if (success) {
-                        loadFavorites()
-                    }
+                if (isFavoriteWithCurrentSize.value) {
+                    if (favoriteRepository.removeFromFavorites(currentProduct.id, currentSize)) loadFavorites()
                 } else {
-                    val success = repository.addToFavorites(token, currentCoffee.id, currentSelectedSize)
-                    if (success) {
-                        loadFavorites()
-                    }
+                    if (favoriteRepository.addToFavorites(currentProduct.id, currentSize)) loadFavorites()
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
             } finally {
                 _isLoading.value = false
             }
@@ -154,34 +103,24 @@ class CoffeeDetailViewModel(
 
     fun selectSize(size: String) {
         _selectedSize.value = size
+        checkIfInCartWithCurrentSize()
     }
 
     fun loadCoffeeImage() {
         viewModelScope.launch {
-            try {
-                val currentCoffee = _coffee.value
-                val token = prefsManager.getToken() ?: return@launch
-                if (currentCoffee != null) {
-                    val bytes = repository.getCoffeeImage(currentCoffee.imageName, token)
-                    _imageBytes.value = bytes
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            val imageName = _coffee.value?.imageName ?: return@launch
+            _imageBytes.value = productRepository.getProductImage(imageName)
         }
     }
 
     fun addToCart() {
         viewModelScope.launch {
-            val currentCoffee = _coffee.value ?: return@launch
+            val currentProduct = _coffee.value ?: return@launch
             val currentSize = _selectedSize.value ?: return@launch
-
             _isLoading.value = true
             try {
-                cartViewModel.addToCart(currentCoffee.id, currentSize, 1)
+                cartRepository.addToCart(currentProduct.id, currentSize, 1)
                 _isInCartWithCurrentSize.value = true
-            } catch (e: Exception) {
-                e.printStackTrace()
             } finally {
                 _isLoading.value = false
             }

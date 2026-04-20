@@ -25,17 +25,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.coffeeshop.R
-import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.data.remote.api.ApiClient
 import com.example.coffeeshop.data.remote.response.OrderItemResponse
 import com.example.coffeeshop.data.remote.response.OrderResponse
-import com.example.coffeeshop.data.repository.CoffeeRepository
 import com.example.coffeeshop.navigation.NavigationRoutes
-import com.example.coffeeshop.presentation.screens.orderhistory.OrderHistoryViewModel
-import com.example.coffeeshop.presentation.screens.orderhistory.OrderHistoryViewModelFactory
+import com.example.coffeeshop.presentation.viewmodel.OrderHistoryViewModel
 import com.example.coffeeshop.presentation.theme.*
 import java.math.BigDecimal
 import java.text.NumberFormat
@@ -45,15 +41,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderHistoryScreen(navController: NavController) {
-    val context = LocalContext.current
-    val prefsManager = remember { PrefsManager(context) }
-
-    val viewModel: OrderHistoryViewModel = viewModel(
-        factory = OrderHistoryViewModelFactory(
-            repository = CoffeeRepository(ApiClient.coffeeApi),
-            prefsManager = prefsManager
-        )
-    )
+    val viewModel: OrderHistoryViewModel = hiltViewModel()
 
     val orders by viewModel.orders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()

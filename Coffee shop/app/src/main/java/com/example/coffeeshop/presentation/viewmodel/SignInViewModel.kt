@@ -1,19 +1,19 @@
 package com.example.coffeeshop.presentation.viewmodel
 
-import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.domain.LoginRequest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.coffeeshop.data.remote.api.ApiClient
-import com.example.coffeeshop.data.managers.ErrorParser
+import com.example.coffeeshop.data.repository.AuthRepository
+import com.example.coffeeshop.data.repository.AuthResult
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class SignInViewModel(
-    private val prefsManager: PrefsManager,
-    private val errorParser: ErrorParser
+@HiltViewModel
+class SignInViewModel @Inject constructor(
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SignInState())
@@ -32,47 +32,16 @@ class SignInViewModel(
     }
 
     fun login() {
-        val currentState = _uiState.value
-
-        if (currentState.email.isEmpty() || currentState.password.isEmpty()) {
-            _uiState.value = currentState.copy(errorMessage = "Все поля должны быть заполнены")
+        val state = _uiState.value
+        if (state.email.isEmpty() || state.password.isEmpty()) {
+            _uiState.value = state.copy(errorMessage = "Все поля должны быть заполнены")
             return
         }
-
-        _uiState.value = currentState.copy(isLoading = true, errorMessage = null)
-
+        _uiState.value = state.copy(isLoading = true, errorMessage = null)
         viewModelScope.launch {
-            try {
-                val request = LoginRequest(currentState.email, currentState.password)
-                val response = ApiClient.coffeeApi.loginUser(request)
-
-                if (response.isSuccessful) {
-                    response.body()?.let { loginResponse ->
-                        prefsManager.saveUserData(
-                            token = loginResponse.token,
-                            userId = loginResponse.userId,
-                            email = loginResponse.email,
-                            name = loginResponse.name
-                        )
-                        _uiState.value = currentState.copy(
-                            isLoading = false,
-                            isLoginSuccess = true
-                        )
-                    }
-                } else {
-                    val errorBody = response.errorBody()?.string()
-                    val errorMessage = errorParser.parseErrorMessage(errorBody ?: "")
-                        ?: "Ошибка сервера: ${response.code()}"
-                    _uiState.value = currentState.copy(
-                        isLoading = false,
-                        errorMessage = errorMessage
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.value = currentState.copy(
-                    isLoading = false,
-                    errorMessage = "Ошибка сети: ${e.message}"
-                )
+            when (val result = authRepository.login(state.email, state.password)) {
+                is AuthResult.Success -> _uiState.value = state.copy(isLoading = false, isLoginSuccess = true)
+                is AuthResult.Error -> _uiState.value = state.copy(isLoading = false, errorMessage = result.message)
             }
         }
     }

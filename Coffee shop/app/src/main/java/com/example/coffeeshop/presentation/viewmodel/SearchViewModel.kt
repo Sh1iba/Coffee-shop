@@ -3,21 +3,22 @@ package com.example.coffeeshop.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.coffeeshop.data.managers.SearchHistoryManager
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class SearchViewModel(
+@HiltViewModel
+class SearchViewModel @Inject constructor(
     private val searchHistoryManager: SearchHistoryManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchState())
     val uiState: StateFlow<SearchState> = _uiState.asStateFlow()
 
-    init {
-        loadSearchHistory()
-    }
+    init { loadSearchHistory() }
 
     fun onSearchTextChange(text: String) {
         _uiState.value = _uiState.value.copy(searchText = text)
@@ -25,9 +26,7 @@ class SearchViewModel(
 
     fun onSearchFocusChange(isFocused: Boolean) {
         _uiState.value = _uiState.value.copy(isSearchFocused = isFocused)
-        if (isFocused && _uiState.value.searchText.isEmpty()) {
-            loadSearchHistory()
-        }
+        if (isFocused && _uiState.value.searchText.isEmpty()) loadSearchHistory()
     }
 
     fun performSearch(onSearch: (String) -> Unit) {
@@ -39,9 +38,7 @@ class SearchViewModel(
         }
     }
 
-    fun clearSearch() {
-        _uiState.value = _uiState.value.copy(searchText = "")
-    }
+    fun clearSearch() { _uiState.value = _uiState.value.copy(searchText = "") }
 
     fun clearSearchHistory() {
         searchHistoryManager.clearSearchHistory()
@@ -57,9 +54,7 @@ class SearchViewModel(
 
     private fun loadSearchHistory() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                searchHistory = searchHistoryManager.getSearchHistory()
-            )
+            _uiState.value = _uiState.value.copy(searchHistory = searchHistoryManager.getSearchHistory())
         }
     }
 }

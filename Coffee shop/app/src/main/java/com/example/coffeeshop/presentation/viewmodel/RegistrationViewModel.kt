@@ -2,16 +2,18 @@ package com.example.coffeeshop.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.coffeeshop.data.managers.ErrorParser
-import com.example.coffeeshop.data.remote.api.ApiClient
-import com.example.coffeeshop.domain.RegisterRequest
+import com.example.coffeeshop.data.repository.AuthRepository
+import com.example.coffeeshop.data.repository.AuthResult
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class RegistrationViewModel(
-    private val errorParser: ErrorParser
+@HiltViewModel
+class RegistrationViewModel @Inject constructor(
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RegistrationState())
@@ -37,41 +39,22 @@ class RegistrationViewModel(
         _uiState.value = _uiState.value.copy(showSuccessDialog = show)
     }
 
-    fun register() {
-        val currentState = _uiState.value
+    fun onRoleChange(isSeller: Boolean) {
+        _uiState.value = _uiState.value.copy(isSeller = isSeller)
+    }
 
-        if (currentState.name.isEmpty() || currentState.email.isEmpty() || currentState.password.isEmpty()) {
-            _uiState.value = currentState.copy(errorMessage = "Все поля должны быть заполнены")
+    fun register() {
+        val state = _uiState.value
+        if (state.name.isEmpty() || state.email.isEmpty() || state.password.isEmpty()) {
+            _uiState.value = state.copy(errorMessage = "Все поля должны быть заполнены")
             return
         }
-
-        _uiState.value = currentState.copy(isLoading = true, errorMessage = null)
-
+        _uiState.value = state.copy(isLoading = true, errorMessage = null)
+        val role = if (state.isSeller) "SELLER" else "BUYER"
         viewModelScope.launch {
-            try {
-                val request = RegisterRequest(currentState.email, currentState.password, currentState.name)
-                val response = ApiClient.coffeeApi.registerUser(request)
-
-                if (response.isSuccessful) {
-                    response.body()?.let {
-                        _uiState.value = currentState.copy(
-                            isLoading = false,
-                            showSuccessDialog = true
-                        )
-                    }
-                } else {
-                    val errorBody = response.errorBody()?.string() ?: "No error body"
-                    val errorMessage = errorParser.parseErrorMessage(errorBody) ?: "Неизвестная ошибка"
-                    _uiState.value = currentState.copy(
-                        isLoading = false,
-                        errorMessage = errorMessage
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.value = currentState.copy(
-                    isLoading = false,
-                    errorMessage = "Ошибка сети: ${e.message}"
-                )
+            when (val result = authRepository.register(state.email, state.password, state.name, role)) {
+                is AuthResult.Success -> _uiState.value = state.copy(isLoading = false, showSuccessDialog = true)
+                is AuthResult.Error -> _uiState.value = state.copy(isLoading = false, errorMessage = result.message)
             }
         }
     }
@@ -87,6 +70,7 @@ data class RegistrationState(
     val password: String = "",
     val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
+    val isSeller: Boolean = false,
     val errorMessage: String? = null,
     val showSuccessDialog: Boolean = false
 )

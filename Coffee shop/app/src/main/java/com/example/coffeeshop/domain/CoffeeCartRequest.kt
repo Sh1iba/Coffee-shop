@@ -1,7 +1,9 @@
 package com.example.coffeeshop.domain
 
-data class CoffeeCartRequest(
-    val coffeeId: Int,
+import com.google.gson.annotations.SerializedName
+
+data class CartItemRequest(
+    @SerializedName("productId") val productId: Int,
     val selectedSize: String,
     val quantity: Int = 1
 )

@@ -1,0 +1,39 @@
+package com.example.coffeeshop.data.repository
+
+import com.example.coffeeshop.data.remote.api.ApiService
+import com.example.coffeeshop.data.remote.response.ProductCategoryResponse
+import com.example.coffeeshop.data.remote.response.ProductResponse
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class ProductRepository @Inject constructor(
+    private val apiService: ApiService
+) {
+    suspend fun getAllProducts(): List<ProductResponse> {
+        val response = apiService.getAllCoffee(page = 0, size = 100)
+        if (!response.isSuccessful) throw Exception("HTTP ${response.code()}: ${response.message()}")
+        return response.body()?.content ?: emptyList()
+    }
+
+    suspend fun getProductById(productId: Int): ProductResponse? {
+        return try {
+            getAllProducts().find { it.id == productId }
+        } catch (e: Exception) { null }
+    }
+
+    suspend fun getAllCategories(): List<ProductCategoryResponse> {
+        val response = apiService.getAllCoffeeTypes()
+        if (!response.isSuccessful) throw Exception("HTTP ${response.code()}: ${response.message()}")
+        return response.body() ?: emptyList()
+    }
+
+    suspend fun getProductImage(imageName: String): ByteArray? {
+        return try {
+            val response = apiService.getCoffeeImage(imageName)
+            if (response.isSuccessful) response.body()?.bytes() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+}

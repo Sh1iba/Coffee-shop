@@ -1,25 +1,25 @@
 package com.example.coffeeshop.presentation.viewmodel
 
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.repository.CoffeeRepository
-import com.example.coffeeshop.navigation.NavigationRoutes
+import com.example.coffeeshop.data.remote.response.ProductResponse
+import com.example.coffeeshop.data.remote.response.SellerResponse
+import com.example.coffeeshop.data.repository.ProductRepository
+import com.example.coffeeshop.data.repository.SellerRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
-import kotlin.collections.filter
+import javax.inject.Inject
 
-class HomeViewModel(
-    private val repository: CoffeeRepository
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val productRepository: ProductRepository,
+    private val sellerRepository: SellerRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -28,96 +28,96 @@ class HomeViewModel(
     private val _imageCache = mutableStateMapOf<String, ByteArray?>()
     val imageCache: Map<String, ByteArray?> get() = _imageCache
 
-
     private val _lastSearchQuery = MutableStateFlow("")
     private val _lastSelectedType = MutableStateFlow<String?>(null)
 
-    private val _showSizeDialog = MutableStateFlow<CoffeeResponse?>(null)
-    val showSizeDialog: StateFlow<CoffeeResponse?> = _showSizeDialog.asStateFlow()
+    private val _showSizeDialog = MutableStateFlow<ProductResponse?>(null)
+    val showSizeDialog: StateFlow<ProductResponse?> = _showSizeDialog.asStateFlow()
 
-    fun showSizeSelectionDialog(coffee: CoffeeResponse) {
-        _showSizeDialog.value = coffee
-    }
+    private val _sellers = MutableStateFlow<List<SellerResponse>>(emptyList())
+    val sellers: StateFlow<List<SellerResponse>> = _sellers.asStateFlow()
 
-    fun hideSizeSelectionDialog() {
-        _showSizeDialog.value = null
-    }
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    fun loadCoffeeData(token: String) {
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    fun showSizeSelectionDialog(product: ProductResponse) { _showSizeDialog.value = product }
+    fun hideSizeSelectionDialog() { _showSizeDialog.value = null }
+
+    fun loadCoffeeData() {
         viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
             try {
-                val coffee = repository.getAllCoffee(token)
-                val types = repository.getAllCoffeeTypes(token)
-
-                val coffeeTypes = listOf("Все кофе") + types.map { it.type }
-                val typeMapping = types.associate { it.type to it.id }
-
-                _uiState.update {
-                    it.copy(
-                        allCoffee = coffee,
-                        filteredCoffee = applySavedFilters(coffee),
-                        coffeeTypes = coffeeTypes,
-                        coffeeTypeMapping = typeMapping
-                    )
+                val products = productRepository.getAllProducts()
+                val types = productRepository.getAllCategories()
+                val sellers = sellerRepository.getAllSellers()
+                _sellers.value = sellers
+                if (products.isEmpty() && types.isEmpty()) {
+                    _error.value = "Не удалось загрузить данные. Проверьте подключение."
+                } else {
+                    val categoryTypes = listOf("Все товары") + types.map { it.type }
+                    val typeMapping = types.associate { it.type to it.id }
+                    _uiState.update {
+                        it.copy(
+                            allProducts = products,
+                            filteredProducts = applySavedFilters(products),
+                            productTypes = categoryTypes,
+                            productTypeMapping = typeMapping
+                        )
+                    }
+                    loadProductImages(products)
                 }
-
-                loadCoffeeImages(coffee, token)
             } catch (e: Exception) {
-                e.printStackTrace()
+                _error.value = "Ошибка: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    internal fun encodeSizesForNavigation(coffee: CoffeeResponse): String {
+    internal fun encodeSizesForNavigation(product: ProductResponse): String {
         return URLEncoder.encode(
-            coffee.sizes.joinToString(",") { "${it.size}:${it.price}" },
+            product.sizes.joinToString(",") { "${it.size}:${it.price}" },
             "UTF-8"
         )
     }
 
-    private fun applySavedFilters(coffeeList: List<CoffeeResponse>): List<CoffeeResponse> {
-        var filtered = coffeeList
-
+    private fun applySavedFilters(products: List<ProductResponse>): List<ProductResponse> {
+        var filtered = products
         _lastSelectedType.value?.let { typeName ->
-            if (typeName != "Все кофе") {
-                val typeId = _uiState.value.coffeeTypeMapping[typeName]
-                if (typeId != null) {
-                    filtered = filtered.filter { it.type.id == typeId }
-                }
+            if (typeName != "Все товары") {
+                val typeId = _uiState.value.productTypeMapping[typeName]
+                if (typeId != null) filtered = filtered.filter { it.type.id == typeId }
             }
         }
-
         if (_lastSearchQuery.value.isNotBlank()) {
-            filtered = filtered.filter { coffee ->
-                coffee.name.contains(_lastSearchQuery.value, ignoreCase = true) ||
-                        coffee.type.type.contains(_lastSearchQuery.value, ignoreCase = true) ||
-                        coffee.description.contains(_lastSearchQuery.value, ignoreCase = true)
+            filtered = filtered.filter { p ->
+                p.name.contains(_lastSearchQuery.value, ignoreCase = true) ||
+                        p.type.type.contains(_lastSearchQuery.value, ignoreCase = true) ||
+                        p.description.contains(_lastSearchQuery.value, ignoreCase = true)
             }
         }
         return filtered
     }
 
-    fun getDefaultPrice(coffee: CoffeeResponse): Float {
-        return coffee.sizes.find { it.size == "M" }?.price ?: coffee.sizes.firstOrNull()?.price ?: 0f
+    fun getDefaultPrice(product: ProductResponse): Float {
+        return product.sizes.find { it.size == "M" }?.price ?: product.sizes.firstOrNull()?.price ?: 0f
     }
 
+    fun getAvailableSizes(product: ProductResponse): List<String> = product.sizes.map { it.size }
 
-    fun getAvailableSizes(coffee: CoffeeResponse): List<String> {
-        return coffee.sizes.map { it.size }
+    fun getPriceBySize(product: ProductResponse, size: String): Float {
+        return product.sizes.find { it.size == size }?.price ?: getDefaultPrice(product)
     }
 
-
-    fun getPriceBySize(coffee: CoffeeResponse, size: String): Float {
-        return coffee.sizes.find { it.size == size }?.price ?: getDefaultPrice(coffee)
-    }
-
-
-    private fun loadCoffeeImages(coffeeList: List<CoffeeResponse>, token: String) {
+    private fun loadProductImages(products: List<ProductResponse>) {
         viewModelScope.launch {
-            coffeeList.forEach { coffee ->
-                if (!_imageCache.containsKey(coffee.imageName)) {
-                    val imageBytes = repository.getCoffeeImage(coffee.imageName, token)
-                    _imageCache[coffee.imageName] = imageBytes
+            products.forEach { p ->
+                if (!_imageCache.containsKey(p.imageName)) {
+                    _imageCache[p.imageName] = productRepository.getProductImage(p.imageName)
                 }
             }
         }
@@ -125,82 +125,54 @@ class HomeViewModel(
 
     fun onCoffeeTypeSelected(typeName: String) {
         _lastSelectedType.value = typeName
-
         val currentState = _uiState.value
-
-        if (typeName == "Все кофе") {
+        if (typeName == "Все товары") {
             _uiState.update {
                 it.copy(
                     selectedTypeName = typeName,
                     selectedTypeId = null,
-                    filteredCoffee = if (it.isSearching) it.searchResults else it.allCoffee
+                    filteredProducts = if (it.isSearching) it.searchResults else it.allProducts
                 )
             }
         } else {
-            val typeId = currentState.coffeeTypeMapping[typeName]
+            val typeId = currentState.productTypeMapping[typeName]
             val filtered = if (currentState.isSearching) {
                 currentState.searchResults.filter { it.type.id == typeId }
             } else {
-                currentState.allCoffee.filter { it.type.id == typeId }
+                currentState.allProducts.filter { it.type.id == typeId }
             }
-
-            _uiState.update {
-                it.copy(
-                    selectedTypeName = typeName,
-                    selectedTypeId = typeId,
-                    filteredCoffee = filtered
-                )
-            }
+            _uiState.update { it.copy(selectedTypeName = typeName, selectedTypeId = typeId, filteredProducts = filtered) }
         }
     }
 
     fun searchCoffee(query: String) {
         _lastSearchQuery.value = query
-
         val currentState = _uiState.value
-        val isSearching = query.isNotBlank()
-
-        if (!isSearching) {
+        if (query.isBlank()) {
             _uiState.update {
                 it.copy(
                     isSearching = false,
                     searchResults = emptyList(),
-                    filteredCoffee = if (it.selectedTypeId == null) it.allCoffee
-                    else it.allCoffee.filter { coffee -> coffee.type.id == it.selectedTypeId }
+                    filteredProducts = if (it.selectedTypeId == null) it.allProducts
+                    else it.allProducts.filter { p -> p.type.id == it.selectedTypeId }
                 )
             }
             return
         }
-
-        val searchResults = currentState.allCoffee.filter { coffee ->
-            coffee.name.contains(query, ignoreCase = true) ||
-                    coffee.type.type.contains(query, ignoreCase = true) ||
-                    coffee.description.contains(query, ignoreCase = true)
+        val searchResults = currentState.allProducts.filter { p ->
+            p.name.contains(query, ignoreCase = true) ||
+                    p.type.type.contains(query, ignoreCase = true) ||
+                    p.description.contains(query, ignoreCase = true)
         }
-
         val finalFiltered = if (currentState.selectedTypeId != null) {
             searchResults.filter { it.type.id == currentState.selectedTypeId }
-        } else {
-            searchResults
-        }
+        } else searchResults
 
-        _uiState.update {
-            it.copy(
-                isSearching = true,
-                searchResults = searchResults,
-                filteredCoffee = finalFiltered
-            )
-        }
+        _uiState.update { it.copy(isSearching = true, searchResults = searchResults, filteredProducts = finalFiltered) }
     }
 
-    fun getCurrentSelectedType(): String? {
-        return _lastSelectedType.value
-    }
-
-    fun getCurrentSearchQuery(): String {
-        return _lastSearchQuery.value
-    }
-
+    fun getCurrentSelectedType(): String? = _lastSelectedType.value
+    fun getCurrentSearchQuery(): String = _lastSearchQuery.value
     fun clearSavedState() {
         _lastSearchQuery.value = ""
         _lastSelectedType.value = null
@@ -208,12 +180,12 @@ class HomeViewModel(
 }
 
 data class HomeUiState(
-    val allCoffee: List<CoffeeResponse> = emptyList(),
-    val filteredCoffee: List<CoffeeResponse> = emptyList(),
-    val coffeeTypes: List<String> = emptyList(),
-    val coffeeTypeMapping: Map<String, Int> = emptyMap(),
+    val allProducts: List<ProductResponse> = emptyList(),
+    val filteredProducts: List<ProductResponse> = emptyList(),
+    val productTypes: List<String> = emptyList(),
+    val productTypeMapping: Map<String, Int> = emptyMap(),
     val selectedTypeId: Int? = null,
-    val selectedTypeName: String = "Все кофе",
-    val searchResults: List<CoffeeResponse> = emptyList(),
+    val selectedTypeName: String = "Все товары",
+    val searchResults: List<ProductResponse> = emptyList(),
     val isSearching: Boolean = false
 )

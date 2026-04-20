@@ -16,9 +16,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.coffeeshop.R
 import com.example.coffeeshop.navigation.NavigationRoutes
@@ -35,15 +33,7 @@ fun PickupReadyScreen(
     navController: NavController,
     preparationTimeMinutes: Float = 0.5f
 ) {
-    val viewModel: PickupReadyViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return PickupReadyViewModel(
-                    preparationTimeMinutes = preparationTimeMinutes
-                ) as T
-            }
-        }
-    )
+    val viewModel: PickupReadyViewModel = hiltViewModel()
 
     val state by viewModel.state.collectAsState()
 

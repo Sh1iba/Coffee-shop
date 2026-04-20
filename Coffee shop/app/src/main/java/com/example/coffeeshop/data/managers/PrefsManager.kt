@@ -17,6 +17,7 @@ class PrefsManager(private val context: Context) {
         const val KEY_ORDER_START_TS = "order_start_ts"
         const val KEY_DARK_MODE = "dark_mode"
         const val KEY_NOTIFICATIONS = "notifications"
+        const val KEY_ROLE = "role"
     }
 
     fun saveBoolean(key: String, value: Boolean) {
@@ -73,17 +74,22 @@ class PrefsManager(private val context: Context) {
         Log.d("PrefsManager", "Первый запуск завершен")
     }
 
-    fun saveUserData(token: String, userId: Long, email: String, name: String) {
+    fun saveUserData(token: String, userId: Long, email: String, name: String, role: String = "BUYER") {
         sharedPreferences.edit().apply {
             putString(KEY_TOKEN, token)
             putLong(KEY_USER_ID, userId)
             putString(KEY_EMAIL, email)
             putString(KEY_NAME, name)
+            putString(KEY_ROLE, role)
             putBoolean(KEY_IS_LOGGED_IN, true)
             apply()
         }
-        Log.d("PrefsManager", "Данные пользователя сохранены: userId=$userId, name=$name")
+        Log.d("PrefsManager", "Данные пользователя сохранены: userId=$userId, name=$name, role=$role")
     }
+
+    fun getRole(): String = sharedPreferences.getString(KEY_ROLE, "BUYER") ?: "BUYER"
+
+    fun isSeller(): Boolean = getRole() == "SELLER"
 
     fun getToken(): String? = sharedPreferences.getString(KEY_TOKEN, null)
 

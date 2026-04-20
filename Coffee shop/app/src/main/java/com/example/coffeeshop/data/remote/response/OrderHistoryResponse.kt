@@ -1,7 +1,7 @@
 package com.example.coffeeshop.data.remote.response
 
+import com.google.gson.annotations.SerializedName
 import java.math.BigDecimal
-import java.time.LocalDateTime
 
 data class OrderResponse(
     val id: Long,
@@ -9,12 +9,14 @@ data class OrderResponse(
     val deliveryFee: BigDecimal,
     val deliveryAddress: String,
     val orderDate: String,
+    val status: String = "PENDING",
     val items: List<OrderItemResponse>
 )
 
 data class OrderItemResponse(
     val id: Long,
-    val coffeeName: String,
+    // JSON: "productName" → Kotlin: coffeeName (чтобы не менять экраны)
+    @SerializedName("productName") val coffeeName: String,
     val selectedSize: String,
     val unitPrice: BigDecimal,
     val quantity: Int,

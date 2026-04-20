@@ -1,6 +1,6 @@
 package com.example.coffeeshop.data.remote.response
 
-data class CoffeeCartResponse(
+data class CartItemResponse(
     val id: Int,
     val name: String,
     val selectedSize: String,
@@ -11,8 +11,7 @@ data class CoffeeCartResponse(
 )
 
 data class CartSummaryResponse(
-    val items: List<CoffeeCartResponse>,
+    val items: List<CartItemResponse>,
     val totalItems: Int,
     val totalPrice: Float
 )
-

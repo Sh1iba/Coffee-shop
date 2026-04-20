@@ -26,20 +26,15 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.coffeeshop.R
-import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.data.remote.api.ApiClient
-import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
-import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
-import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.data.remote.response.ProductResponse
+import com.example.coffeeshop.data.remote.response.ProductVariantResponse
+import com.example.coffeeshop.data.remote.response.ProductCategoryResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
@@ -53,33 +48,10 @@ import com.example.coffeeshop.presentation.viewmodel.CoffeeDetailViewModel
 @Composable
 fun CoffeeDetailScreen(
     navController: NavController,
-    coffee: CoffeeResponse,
+    coffee: ProductResponse,
     favoriteSize: String = ""
 ) {
-    val prefsManager = PrefsManager(LocalContext.current)
-
-    val cartViewModel: CartViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return CartViewModel(
-                    repository = CoffeeRepository(ApiClient.coffeeApi),
-                    prefsManager = prefsManager
-                ) as T
-            }
-        }
-    )
-
-    val viewModel: CoffeeDetailViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return CoffeeDetailViewModel(
-                    repository = CoffeeRepository(ApiClient.coffeeApi),
-                    prefsManager = prefsManager,
-                    cartViewModel = cartViewModel
-                ) as T
-            }
-        }
-    )
+    val viewModel: CoffeeDetailViewModel = hiltViewModel()
 
     val currentCoffee by viewModel.coffee.collectAsState()
     val isFavoriteWithCurrentSize by viewModel.isFavoriteWithCurrentSize.collectAsState()
@@ -355,6 +327,46 @@ fun CoffeeDetailScreen(
                     color = colorLightGrey
                 )
 
+                val activeSellerId = coffee.sellerId?.takeIf { it > 0 }
+                if (activeSellerId != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                navController.navigate("${NavigationRoutes.SELLER_STORE}/$activeSellerId")
+                            },
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    "Продавец",
+                                    fontFamily = SoraFontFamily,
+                                    fontSize = 11.sp,
+                                    color = colorLightGrey
+                                )
+                                Text(
+                                    coffee.sellerName ?: "Открыть магазин",
+                                    fontFamily = SoraFontFamily,
+                                    fontWeight = FontWeight.W600,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Text("→", fontSize = 20.sp, color = colorDarkOrange)
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
@@ -500,15 +512,15 @@ fun BottomOrderPanel(
 @Composable
 fun CoffeeDetailScreenPreview() {
     CoffeeShopTheme {
-        val mockCoffee = CoffeeResponse(
+        val mockCoffee = ProductResponse(
             id = 1,
-            type = CoffeeTypeResponse(1, "Cappuccino"),
+            type = ProductCategoryResponse(1, "Cappuccino"),
             name = "Classic Cappuccino",
             description = "Traditional Italian coffee drink prepared with espresso, hot milk, and steamed milk foam. Perfect balance of coffee and milk with a rich, creamy texture.",
             sizes = listOf(
-                CoffeeSizeResponse("S", 2.50f),
-                CoffeeSizeResponse("M", 3.00f),
-                CoffeeSizeResponse("L", 3.50f)
+                ProductVariantResponse("S", 2.50f),
+                ProductVariantResponse("M", 3.00f),
+                ProductVariantResponse("L", 3.50f)
             ),
             imageName = "cappuccino.jpg"
         )

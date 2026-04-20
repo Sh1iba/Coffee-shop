@@ -2,31 +2,32 @@ package com.example.coffeeshop.data.remote.api
 
 import com.example.coffeeshop.data.remote.response.ApiResponse
 import com.example.coffeeshop.data.remote.response.CartSummaryResponse
-import com.example.coffeeshop.data.remote.response.CoffeeCartResponse
-import com.example.coffeeshop.domain.LoginRequest
-import com.example.coffeeshop.domain.RegisterRequest
-import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
-import com.example.coffeeshop.data.remote.response.FavoriteCoffeeResponse
+import com.example.coffeeshop.data.remote.response.ProductResponse
+import com.example.coffeeshop.data.remote.response.FavoriteProductResponse
+import com.example.coffeeshop.data.remote.response.ProductCategoryResponse
 import com.example.coffeeshop.data.remote.response.LoginResponse
 import com.example.coffeeshop.data.remote.response.OrderResponse
+import com.example.coffeeshop.data.remote.response.PagedProductResponse
 import com.example.coffeeshop.data.remote.response.RegisterResponse
-import com.example.coffeeshop.domain.CoffeeCartRequest
-import com.example.coffeeshop.domain.FavoriteCoffeeRequest
+import com.example.coffeeshop.data.remote.response.SellerOrderResponse
+import com.example.coffeeshop.data.remote.response.SellerResponse
+import com.example.coffeeshop.domain.CartItemRequest
+import com.example.coffeeshop.domain.FavoriteProductRequest
+import com.example.coffeeshop.domain.LoginRequest
 import com.example.coffeeshop.domain.OrderRequest
+import com.example.coffeeshop.domain.ProductManageRequest
+import com.example.coffeeshop.domain.RegisterRequest
+import com.example.coffeeshop.domain.SellerRequest
 import com.example.coffeeshop.domain.UpdateCartQuantityRequest
+import com.example.coffeeshop.domain.UpdateProfileRequest
+import okhttp3.MultipartBody
 import okhttp3.ResponseBody
 import retrofit2.Response
-import retrofit2.http.Body
-import retrofit2.http.DELETE
-import retrofit2.http.GET
-import retrofit2.http.Header
-import retrofit2.http.POST
-import retrofit2.http.PUT
-import retrofit2.http.Path
-import retrofit2.http.Query
+import retrofit2.http.*
 
 interface ApiService {
+
+    // ── AUTH ───────────────────────────────────────────────────────────────
 
     @POST("auth/register")
     suspend fun registerUser(@Body request: RegisterRequest): Response<RegisterResponse>
@@ -34,73 +35,117 @@ interface ApiService {
     @POST("auth/login")
     suspend fun loginUser(@Body request: LoginRequest): Response<LoginResponse>
 
-    @GET("coffee/types")
-    suspend fun getAllCoffeeTypes(@Header("Authorization") token: String? = null):
-            Response<List<CoffeeTypeResponse>>
+    // ── КАТАЛОГ ────────────────────────────────────────────────────────────
 
-    @GET("coffee")
-    suspend fun getAllCoffee(@Header("Authorization") token: String? = null):
-            Response<List<CoffeeResponse>>
+    @GET("products/categories")
+    suspend fun getAllCoffeeTypes(): Response<List<ProductCategoryResponse>>
 
-    @GET("coffee/image/{imageName}")
+    @GET("products")
+    suspend fun getAllCoffee(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 100
+    ): Response<PagedProductResponse>
+
+    @GET("products/image/{imageName}")
     suspend fun getCoffeeImage(
-        @Path("imageName") imageName: String,
-        @Header("Authorization") token: String? = null
+        @Path("imageName") imageName: String
     ): Response<ResponseBody>
 
-    @GET("coffee/favorites")
-    suspend fun getFavorites(@Header("Authorization") token: String? = null):
-            Response<List<FavoriteCoffeeResponse>>
+    // ── ИЗБРАННОЕ ──────────────────────────────────────────────────────────
 
-    @POST("coffee/favorites")
-    suspend fun addToFavorites(
-        @Header("Authorization") token: String? = null,
-        @Body request: FavoriteCoffeeRequest
-    ): Response<ApiResponse>
+    @GET("products/favorites")
+    suspend fun getFavorites(): Response<List<FavoriteProductResponse>>
 
-    @DELETE("coffee/favorites/{coffeeId}")
+    @POST("products/favorites")
+    suspend fun addToFavorites(@Body request: FavoriteProductRequest): Response<ApiResponse>
+
+    @DELETE("products/favorites/{productId}")
     suspend fun removeFromFavorites(
-        @Header("Authorization") token: String? = null,
-        @Path("coffeeId") coffeeId: Int,
+        @Path("productId") coffeeId: Int,
         @Query("size") size: String? = null
     ): Response<ApiResponse>
 
+    // ── КОРЗИНА ────────────────────────────────────────────────────────────
 
-    @GET("coffee/cart")
-    suspend fun getCart(@Header("Authorization") token: String? = null):
-            Response<CartSummaryResponse>
+    @GET("products/cart")
+    suspend fun getCart(): Response<CartSummaryResponse>
 
-    @POST("coffee/cart")
-    suspend fun addToCart(
-        @Header("Authorization") token: String? = null,
-        @Body request: CoffeeCartRequest
-    ): Response<ApiResponse>
+    @POST("products/cart")
+    suspend fun addToCart(@Body request: CartItemRequest): Response<ApiResponse>
 
-    @PUT("coffee/cart/{coffeeId}/{selectedSize}")
+    @PUT("products/cart/{productId}/{selectedSize}")
     suspend fun updateCartQuantity(
-        @Header("Authorization") token: String? = null,
-        @Path("coffeeId") coffeeId: Int,
+        @Path("productId") coffeeId: Int,
         @Path("selectedSize") selectedSize: String,
         @Body request: UpdateCartQuantityRequest
     ): Response<ApiResponse>
 
-    @DELETE("coffee/cart/{coffeeId}/{selectedSize}")
+    @DELETE("products/cart/{productId}/{selectedSize}")
     suspend fun removeFromCart(
-        @Header("Authorization") token: String? = null,
-        @Path("coffeeId") coffeeId: Int,
+        @Path("productId") coffeeId: Int,
         @Path("selectedSize") selectedSize: String
     ): Response<ApiResponse>
 
-    @DELETE("coffee/cart")
-    suspend fun clearCart(@Header("Authorization") token: String? = null): Response<ApiResponse>
+    @DELETE("products/cart")
+    suspend fun clearCart(): Response<ApiResponse>
 
-    @POST("coffee/checkout")
-    suspend fun createOrder(
-        @Header("Authorization") token: String? = null,
-        @Body request: OrderRequest
-    ): Response<ApiResponse>
+    // ── ЗАКАЗЫ ───────────────────────────────────────────────────────────── 
+    @POST("products/checkout")
+    suspend fun createOrder(@Body request: OrderRequest): Response<ApiResponse>
 
-    @GET("coffee/orders/history")
-    suspend fun getOrderHistory(@Header("Authorization") token: String? = null):
-            Response<List<OrderResponse>>
+    @GET("products/orders/history")
+    suspend fun getOrderHistory(): Response<List<OrderResponse>>
+
+    @GET("products/orders/{orderId}")
+    suspend fun getOrderDetails(@Path("orderId") orderId: Long): Response<OrderResponse>
+
+    @PUT("products/orders/{orderId}/cancel")
+    suspend fun cancelOrder(@Path("orderId") orderId: Long): Response<ApiResponse>
+
+    // ── SELLERS ────────────────────────────────────────────────────────────
+
+    @GET("sellers")
+    suspend fun getAllSellers(): Response<List<SellerResponse>>
+
+    @GET("sellers/{id}")
+    suspend fun getSellerById(@Path("id") id: Long): Response<SellerResponse>
+
+    @GET("sellers/me")
+    suspend fun getMyShop(): Response<SellerResponse>
+
+    @POST("sellers")
+    suspend fun createShop(@Body request: SellerRequest): Response<SellerResponse>
+
+    @PUT("sellers/me")
+    suspend fun updateMyShop(@Body request: SellerRequest): Response<SellerResponse>
+
+    @GET("sellers/me/products")
+    suspend fun getMyProducts(): Response<List<ProductResponse>>
+
+    @POST("sellers/me/products")
+    suspend fun createProduct(@Body request: ProductManageRequest): Response<ProductResponse>
+
+    @PUT("sellers/me/products/{productId}")
+    suspend fun updateProduct(
+        @Path("productId") productId: Int,
+        @Body request: ProductManageRequest
+    ): Response<ProductResponse>
+
+    @DELETE("sellers/me/products/{productId}")
+    suspend fun deleteProduct(@Path("productId") productId: Int): Response<ApiResponse>
+
+    @GET("sellers/me/orders")
+    suspend fun getMySellerOrders(): Response<List<SellerOrderResponse>>
+
+    @Multipart
+    @POST("sellers/me/upload-image")
+    suspend fun uploadProductImage(@Part file: MultipartBody.Part): Response<Map<String, String>>
+
+    // ── PROFILE ────────────────────────────────────────────────────────────
+
+    @GET("profile")
+    suspend fun getProfile(): Response<LoginResponse>
+
+    @PUT("profile")
+    suspend fun updateProfile(@Body request: UpdateProfileRequest): Response<LoginResponse>
 }

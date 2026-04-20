@@ -2,10 +2,12 @@ package com.example.coffeeshop.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+import javax.inject.Inject
 
 data class PickupOrderState(
     val timeLeft: Int = 0,
@@ -25,9 +27,11 @@ sealed class PickupOrderEvent {
     object NavigateToHome : PickupOrderEvent()
 }
 
-class PickupReadyViewModel(
+@HiltViewModel
+class PickupReadyViewModel @Inject constructor() : ViewModel() {
+
     private val preparationTimeMinutes: Float = 0.5f
-) : ViewModel() {
+    private val totalSeconds = (preparationTimeMinutes * 60).toInt()
 
     private val _state = MutableStateFlow(PickupOrderState())
     val state: StateFlow<PickupOrderState> = _state.asStateFlow()
@@ -35,77 +39,40 @@ class PickupReadyViewModel(
     private val _events = MutableSharedFlow<PickupOrderEvent>()
     val events: SharedFlow<PickupOrderEvent> = _events.asSharedFlow()
 
-    private val totalSeconds = (preparationTimeMinutes * 60).toInt()
-
-    init {
-        startTimer()
-    }
+    init { startTimer() }
 
     fun onEvent(event: PickupOrderEvent) {
         viewModelScope.launch {
             when (event) {
-                is PickupOrderEvent.StartTimer -> {
-                    startTimer()
-                }
-                is PickupOrderEvent.ResetTimer -> {
-                    resetTimer()
-                }
-                is PickupOrderEvent.GenerateNewOrderNumber -> {
-                    generateNewOrderNumber()
-                }
-                is PickupOrderEvent.NavigateToHome -> {
-                    _events.emit(event)
-                }
+                is PickupOrderEvent.StartTimer -> startTimer()
+                is PickupOrderEvent.ResetTimer -> resetTimer()
+                is PickupOrderEvent.GenerateNewOrderNumber ->
+                    _state.update { it.copy(orderNumber = "#${Random.nextInt(1000, 10000)}") }
+                is PickupOrderEvent.NavigateToHome -> _events.emit(event)
             }
         }
     }
 
     private fun startTimer() {
         viewModelScope.launch {
-            _state.update {
-                it.copy(
-                    timeLeft = totalSeconds,
-                    isOrderReady = false,
-                    progress = 0f
-                )
-            }
-
+            _state.update { it.copy(timeLeft = totalSeconds, isOrderReady = false, progress = 0f) }
             while (_state.value.timeLeft > 0) {
                 delay(1000)
-                updateTimeLeft()
+                val currentTimeLeft = _state.value.timeLeft - 1
+                _state.update {
+                    it.copy(
+                        timeLeft = currentTimeLeft,
+                        minutes = currentTimeLeft / 60,
+                        seconds = currentTimeLeft % 60,
+                        progress = 1f - (currentTimeLeft.toFloat() / totalSeconds.toFloat())
+                    )
+                }
             }
-
-            _state.update {
-                it.copy(
-                    isOrderReady = true,
-                    progress = 1f
-                )
-            }
+            _state.update { it.copy(isOrderReady = true, progress = 1f) }
         }
     }
 
-    private fun updateTimeLeft() {
-        val currentTimeLeft = _state.value.timeLeft - 1
-
-        _state.update {
-            it.copy(
-                timeLeft = currentTimeLeft,
-                minutes = currentTimeLeft / 60,
-                seconds = currentTimeLeft % 60,
-                progress = 1f - (currentTimeLeft.toFloat() / totalSeconds.toFloat())
-            )
-        }
-    }
-
-    private fun generateNewOrderNumber() {
-        _state.update {
-            it.copy(orderNumber = "#${Random.nextInt(1000, 10000)}")
-        }
-    }
-
-    private fun resetTimer() {
-        _state.update { PickupOrderState() }
-    }
+    private fun resetTimer() { _state.update { PickupOrderState() } }
 
     override fun onCleared() {
         super.onCleared()

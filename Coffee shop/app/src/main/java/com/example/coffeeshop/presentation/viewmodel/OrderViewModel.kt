@@ -3,18 +3,20 @@ package com.example.coffeeshop.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.data.remote.response.CoffeeCartResponse
-import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.data.remote.response.CartItemResponse
+import com.example.coffeeshop.data.remote.response.ProductResponse
+import com.example.coffeeshop.data.repository.OrderRepository
+import com.example.coffeeshop.data.repository.ProductRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-// OrderViewModel.kt
 data class OrderItem(
-    val cartItem: CoffeeCartResponse,
-    val coffeeData: CoffeeResponse?,
+    val cartItem: CartItemResponse,
+    val coffeeData: ProductResponse?,
     val imageBytes: ByteArray?
 )
 
@@ -23,8 +25,10 @@ data class ParsedAddress(
     val addressDetails: String
 )
 
-class OrderViewModel(
-    private val repository: CoffeeRepository,
+@HiltViewModel
+class OrderViewModel @Inject constructor(
+    private val orderRepository: OrderRepository,
+    private val productRepository: ProductRepository,
     private val prefsManager: PrefsManager
 ) : ViewModel() {
 
@@ -49,53 +53,34 @@ class OrderViewModel(
     private val _navigateToPickupReady = MutableStateFlow(false)
     val navigateToPickupReady: StateFlow<Boolean> = _navigateToPickupReady.asStateFlow()
 
-
     fun parseAddress(fullAddress: String): ParsedAddress {
         if (fullAddress.isEmpty()) return ParsedAddress("", "")
-
         return try {
             val parts = fullAddress.split(",")
-            if (parts.size >= 2) {
-                ParsedAddress(
-                    mainAddress = parts[0].trim(),
-                    addressDetails = parts.subList(1, parts.size).joinToString(", ").trim()
-                )
-            } else {
-                ParsedAddress(mainAddress = fullAddress, addressDetails = "")
-            }
+            if (parts.size >= 2) ParsedAddress(parts[0].trim(), parts.subList(1, parts.size).joinToString(", ").trim())
+            else ParsedAddress(fullAddress, "")
         } catch (e: Exception) {
-            ParsedAddress(mainAddress = fullAddress, addressDetails = "")
+            ParsedAddress(fullAddress, "")
         }
     }
 
-    fun loadAddressNote(address: String) {
-        _addressNote.value = prefsManager.getAddressNote(address)
-    }
+    fun loadAddressNote(address: String) { _addressNote.value = prefsManager.getAddressNote(address) }
 
     fun saveAddressNote(address: String, note: String) {
         _addressNote.value = note
-        if (address.isNotEmpty()) {
-            prefsManager.saveAddressNote(address, note)
-        }
+        if (address.isNotEmpty()) prefsManager.saveAddressNote(address, note)
     }
 
     fun clearAddressNote(address: String) {
         _addressNote.value = ""
-        if (address.isNotEmpty()) {
-            prefsManager.clearAddressNote(address)
-        }
+        if (address.isNotEmpty()) prefsManager.clearAddressNote(address)
     }
 
-    fun showNoteDialog() {
-        _showNoteDialog.value = true
-    }
-
-    fun hideNoteDialog() {
-        _showNoteDialog.value = false
-    }
+    fun showNoteDialog() { _showNoteDialog.value = true }
+    fun hideNoteDialog() { _showNoteDialog.value = false }
 
     fun createOrder(
-        items: List<CoffeeCartResponse>,
+        items: List<CartItemResponse>,
         address: String,
         note: String,
         totalPrice: Double,
@@ -104,41 +89,22 @@ class OrderViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-
             try {
-                val token = prefsManager.getToken()
-                if (token != null) {
-                    val fullAddress = if (note.isNotEmpty()) "$address ($note)" else address
-
-                    val success = repository.createOrder(
-                        token = token,
-                        items = items,
-                        address = fullAddress,
-                        deliveryFee = deliveryFee
-                    )
-
-                    if (success) {
-                        // В зависимости от типа заказа переходим на разные экраны
-                        if (deliveryFee > 0.0) {
-                            // ДОСТАВКА - показываем экран с курьером
-                            prefsManager.saveLong("order_start_ts", System.currentTimeMillis())
-                            _navigateToActiveOrder.value = true
-                        } else {
-                            // САМОВЫВОЗ - показываем экран "Заказ готов"
-                            _navigateToPickupReady.value = true
-                        }
-
-                        println("✅ Заказ успешно создан!")
-                        clearAddressNote(address)
+                val fullAddress = if (note.isNotEmpty()) "$address ($note)" else address
+                val success = orderRepository.createOrder(items, fullAddress, deliveryFee)
+                if (success) {
+                    if (deliveryFee > 0.0) {
+                        prefsManager.saveLong("order_start_ts", System.currentTimeMillis())
+                        _navigateToActiveOrder.value = true
                     } else {
-                        _error.value = "Ошибка при создании заказа"
+                        _navigateToPickupReady.value = true
                     }
+                    clearAddressNote(address)
                 } else {
-                    _error.value = "Пользователь не авторизован"
+                    _error.value = "Ошибка при создании заказа"
                 }
             } catch (e: Exception) {
                 _error.value = "Ошибка создания заказа: ${e.message}"
-                e.printStackTrace()
             } finally {
                 _isLoading.value = false
             }
@@ -150,36 +116,21 @@ class OrderViewModel(
         _navigateToPickupReady.value = false
     }
 
-    fun loadOrderItems(cartItems: List<CoffeeCartResponse>) {
+    fun loadOrderItems(cartItems: List<CartItemResponse>) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                val token = prefsManager.getToken()
-                if (token != null) {
-                    val orderItemsList = mutableListOf<OrderItem>()
-
-                    for (cartItem in cartItems) {
-                        val coffeeData = repository.getCoffeeById(cartItem.id, token)
-                        val imageBytes = if (cartItem.imageName.isNotEmpty()) {
-                            repository.getCoffeeImage(cartItem.imageName, token)
-                        } else {
-                            null
-                        }
-
-                        orderItemsList.add(
-                            OrderItem(
-                                cartItem = cartItem,
-                                coffeeData = coffeeData,
-                                imageBytes = imageBytes
-                            )
-                        )
-                    }
-
-                    _orderItems.value = orderItemsList
-                } else {
-                    _error.value = "Пользователь не авторизован"
+                val orderItemsList = cartItems.map { cartItem ->
+                    OrderItem(
+                        cartItem = cartItem,
+                        coffeeData = productRepository.getProductById(cartItem.id),
+                        imageBytes = if (cartItem.imageName.isNotEmpty()) {
+                            productRepository.getProductImage(cartItem.imageName)
+                        } else null
+                    )
                 }
+                _orderItems.value = orderItemsList
             } catch (e: Exception) {
                 _error.value = "Ошибка загрузки данных заказа: ${e.message}"
             } finally {
@@ -188,7 +139,5 @@ class OrderViewModel(
         }
     }
 
-    fun clearError() {
-        _error.value = null
-    }
+    fun clearError() { _error.value = null }
 }

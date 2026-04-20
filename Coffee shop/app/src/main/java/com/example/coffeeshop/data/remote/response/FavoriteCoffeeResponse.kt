@@ -1,6 +1,6 @@
 package com.example.coffeeshop.data.remote.response
 
-data class FavoriteCoffeeResponse(
+data class FavoriteProductResponse(
     val id: Int,
     val selectedSize: String
 )

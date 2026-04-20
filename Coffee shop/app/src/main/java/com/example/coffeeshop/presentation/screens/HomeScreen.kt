@@ -49,20 +49,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,9 +83,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -99,17 +93,9 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.coffeeshop.R
-import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.data.repository.AddressRepository
-import com.example.coffeeshop.data.managers.LocationManager
 import com.example.coffeeshop.data.remote.response.NominatimAddress
-import com.example.coffeeshop.data.managers.SearchHistoryManager
-import com.example.coffeeshop.data.remote.api.ApiClient
-
-import com.example.coffeeshop.data.remote.api.ApiClient.coffeeApi
-import com.example.coffeeshop.domain.RegisterRequest
-import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.data.remote.response.ProductResponse
+import com.example.coffeeshop.data.remote.response.SellerResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
 import com.example.coffeeshop.presentation.theme.colorBackgroudWhite
@@ -126,38 +112,24 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(navController: NavHostController = rememberNavController()) {
-    val viewModel: HomeViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return HomeViewModel(
-                    repository = CoffeeRepository(ApiClient.coffeeApi)
-                ) as T
-            }
-        }
-    )
-
-    val prefsManager = PrefsManager(LocalContext.current)
-    val token = prefsManager.getToken()
-
-    val cartViewModel: CartViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return CartViewModel(
-                    repository = CoffeeRepository(ApiClient.coffeeApi),
-                    prefsManager = prefsManager
-                ) as T
-            }
-        }
-    )
+    val viewModel: HomeViewModel = hiltViewModel()
+    val cartViewModel: CartViewModel = hiltViewModel()
 
     val selectedTypeId = remember { mutableStateOf<Int?>(null) }
     val showSizeDialog by viewModel.showSizeDialog.collectAsState()
 
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val screenHeight = configuration.screenHeightDp.dp
+
+    val headerHeight = (screenHeight * 0.34f).coerceIn(220.dp, 320.dp)
+    val bannerHeight = (screenHeight * 0.18f).coerceIn(110.dp, 160.dp)
+    val bannerWidth = screenWidth - 48.dp
+    val bannerOffsetY = headerHeight * 0.72f
+
     LaunchedEffect(Unit) {
-        if (token != null) {
-            viewModel.loadCoffeeData(token)
-            cartViewModel.loadCart()
-        }
+        viewModel.loadCoffeeData()
+        cartViewModel.loadCart()
     }
 
     Box(
@@ -170,7 +142,7 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(280.dp)
+                .height(headerHeight)
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(Color(0xFF313131), Color(0xFF111111)),
@@ -183,9 +155,9 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
             painter = painterResource(id = R.drawable.banner),
             contentDescription = "banner Image",
             modifier = Modifier
-                .width(327.dp)
-                .height(140.dp)
-                .offset(x = 24.dp, y = 211.dp),
+                .width(bannerWidth)
+                .height(bannerHeight)
+                .offset(x = 24.dp, y = bannerOffsetY),
             contentScale = ContentScale.Crop
         )
         FirstHalfOfHomeScreen(viewModel = viewModel)
@@ -217,13 +189,13 @@ fun SecondHalfOfHomeScreen(
     val contentHeight = when {
         isTablet && isLandscape -> screenHeight * 0.7f
         isTablet -> screenHeight * 0.65f
-        else -> 600.dp
+        else -> (screenHeight * 0.75f).coerceIn(480.dp, 680.dp)
     }
 
     val contentOffset = when {
         isTablet && isLandscape -> screenHeight * 0.25f
         isTablet -> screenHeight * 0.3f
-        else -> 375.dp
+        else -> (screenHeight * 0.43f).coerceIn(280.dp, 420.dp)
     }
 
     val horizontalPadding = if (isTablet) 48.dp else 24.dp
@@ -231,6 +203,9 @@ fun SecondHalfOfHomeScreen(
     val rowBottomPadding = if (isTablet) 24.dp else 16.dp
 
     val homeState by viewModel.uiState.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+    val sellers by viewModel.sellers.collectAsState()
 
         Box(
             modifier = Modifier
@@ -243,30 +218,50 @@ fun SecondHalfOfHomeScreen(
                     .fillMaxSize()
                     .padding(horizontal = horizontalPadding)
             ) {
-                CoffeeCategoryRow(
-                    onCoffeeTypeSelected = { typeId ->
-                        val typeName = if (typeId == null) {
-                            "Все кофе"
-                        } else {
-                            homeState.coffeeTypeMapping.entries.find { it.value == typeId }?.key ?: "Все кофе"
+                when {
+                    isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = colorDarkOrange)
                         }
-                        viewModel.onCoffeeTypeSelected(typeName)
-                    },
-                    viewModel = viewModel,
-                    modifier = Modifier.padding(bottom = rowBottomPadding)
-                )
+                    }
+                    error != null -> {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(
+                                    text = error ?: "",
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    fontFamily = SoraFontFamily,
+                                    fontSize = 14.sp
+                                )
+                                TextButton(onClick = { viewModel.loadCoffeeData() }) {
+                                    Text("Повторить", color = colorDarkOrange, fontFamily = SoraFontFamily)
+                                }
+                            }
+                        }
+                    }
+                    else -> {
+                        CoffeeCategoryColumn(
+                            productList = homeState.filteredProducts,
+                            sellers = sellers,
+                            viewModel = viewModel,
+                            navController = navController,
+                            cartViewModel = cartViewModel,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        )
+                    }
+                }
 
-                CoffeeCategoryColumn(
-                    coffeeList = homeState.filteredCoffee,
-                    viewModel = viewModel,
-                    navController = navController,
-                    cartViewModel = cartViewModel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                )
-
-                Spacer(modifier = Modifier.height(150.dp))
             }
         }
 }
@@ -278,19 +273,10 @@ fun SecondHalfOfHomeScreen(
 fun FirstHalfOfHomeScreen(viewModel: HomeViewModel) {
     val context = LocalContext.current
 
-    val locationViewModel = remember {
-        LocationViewModel(
-            locationManager = LocationManager(context),
-            addressRepository = AddressRepository()
-        )
-    }
+    val locationViewModel: LocationViewModel = hiltViewModel()
     val locationState by locationViewModel.uiState.collectAsState()
 
-    val searchViewModel = remember {
-        SearchViewModel(
-            searchHistoryManager = SearchHistoryManager(context)
-        )
-    }
+    val searchViewModel: SearchViewModel = hiltViewModel()
     val searchState by searchViewModel.uiState.collectAsState()
 
     val configuration = LocalConfiguration.current
@@ -850,6 +836,104 @@ fun AddressItem(
 
 
 @Composable
+fun SellersRow(
+    sellers: List<SellerResponse>,
+    navController: NavController,
+    modifier: Modifier = Modifier
+) {
+    val isTablet = LocalConfiguration.current.screenWidthDp >= 600
+    Column(modifier = modifier) {
+        Text(
+            text = "Магазины",
+            fontFamily = SoraFontFamily,
+            fontWeight = FontWeight.W600,
+            fontSize = if (isTablet) 18.sp else 16.sp,
+            color = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.padding(bottom = 10.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(end = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(sellers) { seller ->
+                SellerChipCard(seller = seller, onClick = {
+                    navController.navigate("${NavigationRoutes.SELLER_STORE}/${seller.id}")
+                })
+            }
+        }
+    }
+}
+
+@Composable
+fun SellerChipCard(seller: SellerResponse, onClick: () -> Unit) {
+    val isTablet = LocalConfiguration.current.screenWidthDp >= 600
+    Surface(
+        modifier = Modifier
+            .width(if (isTablet) 180.dp else 150.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        shadowElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(Color(0xFF3A3A3A), Color(0xFF1A1A1A))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ShoppingCart,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            Text(
+                text = seller.name,
+                fontFamily = SoraFontFamily,
+                fontWeight = FontWeight.W600,
+                fontSize = if (isTablet) 14.sp else 12.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text("★", fontSize = 10.sp, color = colorDarkOrange)
+                Text(
+                    text = "%.1f".format(seller.rating),
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W600,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "· ${seller.category}",
+                    fontFamily = SoraFontFamily,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun CoffeeCategoryRow(
     onCoffeeTypeSelected: (Int?) -> Unit,
     viewModel: HomeViewModel,
@@ -876,7 +960,7 @@ fun CoffeeCategoryRow(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(end = 8.dp)
     ) {
-        items(homeState.coffeeTypes) { item ->
+        items(homeState.productTypes) { item ->
             Box(
                 modifier = Modifier
                     .padding(end = 8.dp)
@@ -893,10 +977,10 @@ fun CoffeeCategoryRow(
                     .clickable {
                         selectedItem.value = item
 
-                        if (item == "Все кофе") {
+                        if (item == "Все товары") {
                             onCoffeeTypeSelected(null)
                         } else {
-                            val typeId = homeState.coffeeTypeMapping[item]
+                            val typeId = homeState.productTypeMapping[item]
                             onCoffeeTypeSelected(typeId)
                         }
                     }
@@ -916,34 +1000,43 @@ fun CoffeeCategoryRow(
 
 @Composable
 fun CoffeeCategoryColumn(
-    coffeeList: List<CoffeeResponse>,
+    productList: List<ProductResponse>,
+    sellers: List<SellerResponse> = emptyList(),
     viewModel: HomeViewModel,
     navController: NavController,
     cartViewModel: CartViewModel,
     modifier: Modifier = Modifier
 ) {
-    val prefsManager = PrefsManager(LocalContext.current)
-    val token = prefsManager.getToken() ?: ""
+    val isTablet = LocalConfiguration.current.screenWidthDp >= 600
+    val rowBottomPadding = if (isTablet) 24.dp else 16.dp
 
     LazyColumn(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 160.dp),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(bottom = 16.dp)
+        contentPadding = PaddingValues(bottom = 110.dp)
     ) {
-        items(coffeeList.chunked(2)) { pair ->
+        if (sellers.isNotEmpty()) {
+            item {
+                SellersRow(
+                    sellers = sellers,
+                    navController = navController,
+                    modifier = Modifier.padding(bottom = rowBottomPadding)
+                )
+            }
+        }
+
+        items(productList.chunked(2)) { pair ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(15.dp)
             ) {
                 pair.forEach { coffee ->
-                    CoffeeItem(
+                    ProductCard(
                         coffee = coffee,
                         viewModel = viewModel,
-                        token = token,
                         navController = navController,
-                        cartViewModel = cartViewModel
+                        cartViewModel = cartViewModel,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
@@ -956,28 +1049,24 @@ fun CoffeeCategoryColumn(
 }
 
 @Composable
-fun CoffeeItem(
-    coffee: CoffeeResponse,
+fun ProductCard(
+    coffee: ProductResponse,
     viewModel: HomeViewModel,
-    token: String,
     navController: NavController,
-    cartViewModel: CartViewModel
+    cartViewModel: CartViewModel,
+    modifier: Modifier = Modifier
 ) {
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val itemHeight = (screenHeight * 0.30f).coerceIn(200.dp, 260.dp)
+    val imageHeight = (itemHeight * 0.52f).coerceIn(100.dp, 135.dp)
     val imageBytes by viewModel.imageCache[coffee.imageName]
         ?.let { bytes -> remember(bytes) { mutableStateOf(bytes) } }
         ?: remember { mutableStateOf<ByteArray?>(null) }
 
     val imagePainter = rememberAsyncImagePainter(
-        model = if (imageBytes != null) {
-            ImageRequest.Builder(LocalContext.current)
-                .data(imageBytes)
-                .build()
-        } else {
-            ImageRequest.Builder(LocalContext.current)
-                .data("http://10.0.2.2:8080/api/coffee/image/${coffee.imageName}")
-                .setHeader("Authorization", token)
-                .build()
-        }
+        model = ImageRequest.Builder(LocalContext.current)
+            .data(imageBytes)
+            .build()
     )
 
     val defaultPrice = remember(coffee) {
@@ -991,9 +1080,8 @@ fun CoffeeItem(
     }
 
     Surface(
-        modifier = Modifier
-            .width(156.dp)
-            .height(238.dp)
+        modifier = modifier
+            .height(itemHeight)
             .clickable {
                 val sizesEncoded = viewModel.encodeSizesForNavigation(coffee)
                 navController.navigate(
@@ -1004,7 +1092,8 @@ fun CoffeeItem(
                             "${coffee.description}/" +
                             "${coffee.imageName}" +
                             "?sizes=$sizesEncoded" +
-                            "&favoriteSize="
+                            "&favoriteSize=" +
+                            "&sellerId=${coffee.sellerId ?: -1L}"
                 )
             },
         color = MaterialTheme.colorScheme.surface,
@@ -1020,7 +1109,7 @@ fun CoffeeItem(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(125.dp)
+                    .height(imageHeight)
                     .clip(RoundedCornerShape(12.dp))
             ) {
                 Image(
@@ -1112,7 +1201,7 @@ fun CoffeeItem(
 
 @Composable
 fun SizeSelectionDialog(
-    coffee: CoffeeResponse,
+    coffee: ProductResponse,
     onDismiss: () -> Unit,
     onSizeSelected: (String) -> Unit
 ) {

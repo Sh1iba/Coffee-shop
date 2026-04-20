@@ -3,26 +3,25 @@ package com.example.coffeeshop.presentation.viewmodel
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.data.remote.response.ProductResponse
+import com.example.coffeeshop.data.repository.FavoriteRepository
+import com.example.coffeeshop.data.repository.ProductRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
+import javax.inject.Inject
 
-class FavoriteCoffeeViewModel(
-    internal val repository: CoffeeRepository,
-    private val prefsManager: PrefsManager
+@HiltViewModel
+class FavoriteCoffeeViewModel @Inject constructor(
+    private val favoriteRepository: FavoriteRepository,
+    private val productRepository: ProductRepository
 ) : ViewModel() {
 
-
-    private val _favoriteCoffees = MutableStateFlow<List<Pair<CoffeeResponse, String>>>(emptyList())
-    val favoriteCoffees: StateFlow<List<Pair<CoffeeResponse, String>>> = _favoriteCoffees.asStateFlow()
+    private val _favoriteCoffees = MutableStateFlow<List<Pair<ProductResponse, String>>>(emptyList())
+    val favoriteCoffees: StateFlow<List<Pair<ProductResponse, String>>> = _favoriteCoffees.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -35,32 +34,25 @@ class FavoriteCoffeeViewModel(
     private val _scrollState = MutableStateFlow(0)
     val scrollState: StateFlow<Int> = _scrollState.asStateFlow()
 
-    fun saveScrollPosition(position: Int) {
-        _scrollState.value = position
-    }
-
+    fun saveScrollPosition(position: Int) { _scrollState.value = position }
 
     fun loadFavorites() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                val token = prefsManager.getToken()
-                if (token != null) {
-                    val favorites = repository.getFavorites(token)
-                    val allCoffee = repository.getAllCoffee(token)
+                val favorites = favoriteRepository.getFavorites()
+                val allProducts = productRepository.getAllProducts()
 
-                    val favoriteCoffeeList = favorites.mapNotNull { favorite ->
-                        val coffee = allCoffee.find { it.id == favorite.id }
-                        coffee?.let { it to favorite.selectedSize }
-                    }
+                val favoritePairs = favorites.mapNotNull { favorite ->
+                    allProducts.find { it.id == favorite.id }?.let { it to favorite.selectedSize }
+                }
+                _favoriteCoffees.value = favoritePairs
 
-                    _favoriteCoffees.value = favoriteCoffeeList
-                    favoriteCoffeeList.forEach { (coffee, _) ->
-                        loadCoffeeImage(coffee.id, coffee.imageName, token)
+                favoritePairs.forEach { (product, _) ->
+                    if (product.imageName.isNotEmpty() && !_imageMap.containsKey(product.id)) {
+                        _imageMap[product.id] = productRepository.getProductImage(product.imageName)
                     }
-                } else {
-                    _error.value = "Пользователь не авторизован"
                 }
             } catch (e: Exception) {
                 _error.value = "Ошибка загрузки: ${e.message}"
@@ -70,18 +62,15 @@ class FavoriteCoffeeViewModel(
         }
     }
 
-    fun removeFromFavorites(coffeeId: Int, size: String) {
+    fun removeFromFavorites(productId: Int, size: String) {
         viewModelScope.launch {
             try {
-                val token = prefsManager.getToken()
-                if (token != null) {
-                    val success = repository.removeFromFavorites(token, coffeeId, size)
-                    if (success) {
-                        _favoriteCoffees.value = _favoriteCoffees.value.filter {
-                                (coffee, savedSize) -> coffee.id != coffeeId || savedSize != size
-                        }
-                        _imageMap.remove(coffeeId)
+                val success = favoriteRepository.removeFromFavorites(productId, size)
+                if (success) {
+                    _favoriteCoffees.value = _favoriteCoffees.value.filter { (coffee, savedSize) ->
+                        coffee.id != productId || savedSize != size
                     }
+                    _imageMap.remove(productId)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -89,37 +78,19 @@ class FavoriteCoffeeViewModel(
         }
     }
 
-    private fun loadCoffeeImage(coffeeId: Int, imageName: String, token: String) {
-        viewModelScope.launch {
-            try {
-                if (imageName.isNotEmpty()) {
-                    val bytes = repository.getCoffeeImage(imageName, token)
-                    _imageMap[coffeeId] = bytes
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+    fun getImageForProduct(productId: Int): ByteArray? = _imageMap[productId]
+
+    fun clearError() { _error.value = null }
+
+    fun getPriceForSavedSize(coffee: ProductResponse, savedSize: String): Float {
+        return coffee.sizes.find { it.size == savedSize }?.price ?: getDefaultPrice(coffee)
     }
 
-    fun getImageForCoffee(coffeeId: Int): ByteArray? {
-        return _imageMap[coffeeId]
-    }
-
-    fun clearError() {
-        _error.value = null
-    }
-
-    fun getPriceForSavedSize(coffee: CoffeeResponse, savedSize: String): Float {
-        return coffee.sizes.find { it.size == savedSize }?.price
-            ?: getDefaultPrice(coffee)
-    }
-
-    fun getDefaultPrice(coffee: CoffeeResponse): Float {
+    fun getDefaultPrice(coffee: ProductResponse): Float {
         return coffee.sizes.find { it.size == "M" }?.price ?: coffee.sizes.firstOrNull()?.price ?: 0f
     }
 
-    fun encodeSizesForNavigation(coffee: CoffeeResponse): String {
+    fun encodeSizesForNavigation(coffee: ProductResponse): String {
         return URLEncoder.encode(
             coffee.sizes.joinToString(",") { "${it.size}:${it.price}" },
             "UTF-8"

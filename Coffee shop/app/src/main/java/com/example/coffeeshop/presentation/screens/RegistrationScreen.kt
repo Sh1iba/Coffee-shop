@@ -50,7 +50,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.coffeeshop.R
 import com.example.coffeeshop.navigation.NavigationRoutes
-import com.example.coffeeshop.data.managers.ErrorParser
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.coffeeshop.presentation.theme.colorBackgroudWhite
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.theme.colorLightGrey
@@ -60,12 +60,7 @@ import com.example.coffeeshop.presentation.viewmodel.RegistrationViewModel
 @Composable
 fun RegistrationScreen(navController: NavController) {
     val context = LocalContext.current
-
-    val viewModel = remember {
-        RegistrationViewModel(
-            errorParser = ErrorParser()
-        )
-    }
+    val viewModel: RegistrationViewModel = hiltViewModel()
 
     val state by viewModel.uiState.collectAsState()
 
@@ -244,10 +239,44 @@ fun RegistrationScreen(navController: NavController) {
             }
         }
 
+        // Переключатель роли
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, top = 475.dp, end = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "Зарегистрироваться как продавец",
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W400,
+                    fontSize = 14.sp,
+                    color = colorFoundationGrey
+                )
+                Text(
+                    text = "Добавляйте и продавайте свои товары",
+                    fontFamily = SoraFontFamily,
+                    fontWeight = FontWeight.W400,
+                    fontSize = 12.sp,
+                    color = colorLightGrey
+                )
+            }
+            androidx.compose.material3.Switch(
+                checked = state.isSeller,
+                onCheckedChange = viewModel::onRoleChange,
+                colors = androidx.compose.material3.SwitchDefaults.colors(
+                    checkedThumbColor = colorDarkOrange,
+                    checkedTrackColor = colorDarkOrange.copy(alpha = 0.3f)
+                )
+            )
+        }
+
         HorizontalDivider(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 39.dp, top = 507.dp, end = 39.dp),
+                .padding(start = 39.dp, top = 545.dp, end = 39.dp),
             thickness = 1.dp,
             color = Color(0xFFE3E3E3)
         )
@@ -255,7 +284,7 @@ fun RegistrationScreen(navController: NavController) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 24.dp, top = 523.dp, end = 24.dp)
+                .padding(start = 24.dp, top = 561.dp, end = 24.dp)
         ) {
             Button(
                 onClick = { viewModel.register() },

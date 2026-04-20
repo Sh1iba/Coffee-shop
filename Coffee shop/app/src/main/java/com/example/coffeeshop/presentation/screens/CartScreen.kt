@@ -1,3 +1,4 @@
+package com.example.coffeeshop.presentation.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -7,22 +8,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.mapSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -31,26 +27,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.coffeeshop.R
-import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.data.remote.api.ApiClient
-import com.example.coffeeshop.data.remote.response.CoffeeCartResponse
-import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.data.remote.response.CartItemResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
-import com.example.coffeeshop.presentation.theme.colorLightGrey
 import com.example.coffeeshop.presentation.viewmodel.CartViewModel
-import com.example.coffeeshop.presentation.viewmodel.FavoriteCoffeeViewModel
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
@@ -60,19 +48,7 @@ import java.net.URLEncoder
 fun CartScreen(
     navController: NavController
 ) {
-    val context = LocalContext.current
-    val prefsManager = PrefsManager(context)
-
-    val viewModel: CartViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return CartViewModel(
-                    repository = CoffeeRepository(ApiClient.coffeeApi),
-                    prefsManager = prefsManager
-                ) as T
-            }
-        }
-    )
+    val viewModel: CartViewModel = hiltViewModel()
 
     val cartItems by viewModel.cartItems.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -311,7 +287,7 @@ fun CartScreen(
 
 @Composable
 fun CartItemCard(
-    item: CoffeeCartResponse,
+    item: CartItemResponse,
     viewModel: CartViewModel,
     navController: NavController,
     isSelected: Boolean,
@@ -320,7 +296,7 @@ fun CartItemCard(
     onRemove: () -> Unit
 ) {
     val imageBytes by remember(item.id) {
-        derivedStateOf { viewModel.getImageForCoffee(item.id) }
+        derivedStateOf { viewModel.getImageForProduct(item.id) }
     }
 
     val coroutineScope = rememberCoroutineScope()
@@ -331,7 +307,7 @@ fun CartItemCard(
             .padding(horizontal = 16.dp)
             .clickable {
                 coroutineScope.launch {
-                    val fullCoffeeData = viewModel.getFullCoffeeData(item.id)
+                    val fullCoffeeData = viewModel.getFullProductData(item.id)
                     fullCoffeeData?.let { coffee ->
                         val sizesEncoded = URLEncoder.encode(
                             coffee.sizes.joinToString(",") { size ->
@@ -347,7 +323,8 @@ fun CartItemCard(
                                     "${coffee.description}/" +
                                     "${coffee.imageName}" +
                                     "?sizes=$sizesEncoded" +
-                                    "&favoriteSize=${item.selectedSize}"
+                                    "&favoriteSize=${item.selectedSize}" +
+                                    "&sellerId=${coffee.sellerId ?: -1L}"
                         )
                     }
                 }

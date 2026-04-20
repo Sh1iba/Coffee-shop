@@ -1,5 +1,6 @@
 package com.example.coffeeshop.domain
 
+import com.google.gson.annotations.SerializedName
 import java.math.BigDecimal
 
 data class OrderRequest(
@@ -9,6 +10,6 @@ data class OrderRequest(
 )
 
 data class OrderCartItem(
-    val coffeeId: Int,
+    @SerializedName("productId") val coffeeId: Int,
     val selectedSize: String
 )

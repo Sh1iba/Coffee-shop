@@ -26,18 +26,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.coffeeshop.R
-import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.data.remote.api.ApiClient
-import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.data.remote.response.ProductResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
@@ -51,19 +46,7 @@ import com.example.coffeeshop.presentation.viewmodel.FavoriteCoffeeViewModel
 fun FavoriteCoffeeScreen(
     navController: NavController
 ) {
-    val context = LocalContext.current
-    val prefsManager = PrefsManager(context)
-
-    val viewModel: FavoriteCoffeeViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return FavoriteCoffeeViewModel(
-                    repository = CoffeeRepository(ApiClient.coffeeApi),
-                    prefsManager = prefsManager
-                ) as T
-            }
-        }
-    )
+    val viewModel: FavoriteCoffeeViewModel = hiltViewModel()
 
     val favoriteCoffees by viewModel.favoriteCoffees.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -196,7 +179,7 @@ fun FavoriteCoffeeScreen(
 
 @Composable
 fun CoffeeFavoriteCard(
-    coffee: CoffeeResponse,
+    coffee: ProductResponse,
     savedSize: String,
     viewModel: FavoriteCoffeeViewModel,
     onRemove: () -> Unit,
@@ -204,7 +187,7 @@ fun CoffeeFavoriteCard(
     onNavigateToDetail: () -> Unit
 ) {
     val imageBytes by remember(coffee.id) {
-        derivedStateOf { viewModel.getImageForCoffee(coffee.id) }
+        derivedStateOf { viewModel.getImageForProduct(coffee.id) }
     }
 
     val savedPrice = remember(coffee, savedSize) {
@@ -225,7 +208,8 @@ fun CoffeeFavoriteCard(
                             "${coffee.description}/" +
                             "${coffee.imageName}" +
                             "?sizes=$sizesEncoded" +
-                            "&favoriteSize=$savedSize"
+                            "&favoriteSize=$savedSize" +
+                            "&sellerId=${coffee.sellerId ?: -1L}"
                 )
             },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

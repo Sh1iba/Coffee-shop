@@ -19,12 +19,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.coffeeshop.R
-import com.example.coffeeshop.data.managers.PrefsManager
 import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
 import com.example.coffeeshop.presentation.theme.colorDarkOrange
@@ -38,19 +35,7 @@ fun ActiveOrderScreen(
     navController: NavController,
     deliveryTimeMinutes: Float = 0.5F
 ) {
-    val context = LocalContext.current
-    val prefsManager = PrefsManager(context)
-
-    val viewModel: ActiveOrderViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return ActiveOrderViewModel(
-                    prefsManager = prefsManager,
-                    deliveryTimeMinutes = deliveryTimeMinutes
-                ) as T
-            }
-        }
-    )
+    val viewModel: ActiveOrderViewModel = hiltViewModel()
 
     val state by viewModel.state.collectAsState()
 

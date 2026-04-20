@@ -3,11 +3,14 @@ package com.example.coffeeshop.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.coffeeshop.data.managers.PrefsManager
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class SettingsViewModel(
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
     private val prefsManager: PrefsManager
 ) : ViewModel() {
 
@@ -16,6 +19,10 @@ class SettingsViewModel(
 
     private val _notificationsState = MutableStateFlow(prefsManager.getBoolean(PrefsManager.KEY_NOTIFICATIONS, true))
     val notificationsState: StateFlow<Boolean> = _notificationsState
+
+    val userName: StateFlow<String> = MutableStateFlow(prefsManager.getName() ?: "Пользователь")
+    val userEmail: StateFlow<String> = MutableStateFlow(prefsManager.getEmail() ?: "email@example.com")
+    val isSeller: StateFlow<Boolean> = MutableStateFlow(prefsManager.isSeller())
 
     fun toggleDarkMode(enabled: Boolean) {
         viewModelScope.launch {
@@ -29,5 +36,9 @@ class SettingsViewModel(
             prefsManager.saveBoolean(PrefsManager.KEY_NOTIFICATIONS, enabled)
             _notificationsState.value = enabled
         }
+    }
+
+    fun logout() {
+        prefsManager.logout()
     }
 }

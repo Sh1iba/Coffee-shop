@@ -1,15 +1,19 @@
 package com.example.coffeeshop.data.remote.response
 
-data class CoffeeResponse(
+import com.google.gson.annotations.SerializedName
+
+data class ProductResponse(
     val id: Int,
-    val type: CoffeeTypeResponse,
+    @SerializedName("category") val type: ProductCategoryResponse,
     val name: String,
     val description: String,
-    val sizes: List<CoffeeSizeResponse>,
-    val imageName: String
+    @SerializedName("variants") val sizes: List<ProductVariantResponse>,
+    val imageName: String,
+    val sellerId: Long? = null,
+    val sellerName: String? = null
 )
 
-data class CoffeeSizeResponse(
+data class ProductVariantResponse(
     val size: String,
     val price: Float
 )

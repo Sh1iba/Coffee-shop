@@ -1,6 +1,5 @@
 package com.example.coffeeshop
 
-import CartScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,10 +14,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.data.remote.response.CoffeeCartResponse
-import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
-import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
+import com.example.coffeeshop.data.remote.response.CartItemResponse
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import com.example.coffeeshop.data.remote.response.ProductResponse
+import com.example.coffeeshop.data.remote.response.ProductVariantResponse
+import com.example.coffeeshop.data.remote.response.ProductCategoryResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.presentation.screens.*
 import com.example.coffeeshop.presentation.screens.favorite.FavoriteCoffeeScreen
@@ -28,11 +29,13 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.net.URLDecoder
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var prefsManager: PrefsManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        val prefsManager = PrefsManager(this)
 
         val startDestination = if (prefsManager.isFirstLaunch()) {
             prefsManager.setFirstLaunchCompleted()
@@ -44,12 +47,10 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            // Ключевое изменение: создаем состояние темы
             var darkThemeEnabled by remember {
                 mutableStateOf(prefsManager.getBoolean(PrefsManager.KEY_DARK_MODE, false))
             }
 
-            // Оборачиваем ВСЕ приложение в тему с этим состоянием
             CoffeeShopTheme(darkTheme = darkThemeEnabled) {
                 val navController = rememberNavController()
 
@@ -84,7 +85,7 @@ class MainActivity : ComponentActivity() {
                             SignInScreen(navController)
                         }
                         composable(
-                            route = "${NavigationRoutes.DETAIL}/{coffeeId}/{coffeeName}/{coffeeType}/{coffeeDescription}/{imageName}?sizes={sizes}&favoriteSize={favoriteSize}",
+                            route = "${NavigationRoutes.DETAIL}/{coffeeId}/{coffeeName}/{coffeeType}/{coffeeDescription}/{imageName}?sizes={sizes}&favoriteSize={favoriteSize}&sellerId={sellerId}",
                             arguments = listOf(
                                 navArgument("coffeeId") { type = NavType.IntType },
                                 navArgument("coffeeName") { type = NavType.StringType },
@@ -98,6 +99,10 @@ class MainActivity : ComponentActivity() {
                                 navArgument("favoriteSize") {
                                     type = NavType.StringType
                                     defaultValue = ""
+                                },
+                                navArgument("sellerId") {
+                                    type = NavType.LongType
+                                    defaultValue = -1L
                                 }
                             )
                         ) { backStackEntry ->
@@ -108,6 +113,7 @@ class MainActivity : ComponentActivity() {
                             val imageName = backStackEntry.arguments?.getString("imageName") ?: ""
                             val sizesEncoded = backStackEntry.arguments?.getString("sizes") ?: ""
                             val favoriteSize = backStackEntry.arguments?.getString("favoriteSize") ?: ""
+                            val sellerId = backStackEntry.arguments?.getLong("sellerId") ?: -1L
 
                             val sizes = if (sizesEncoded.isEmpty()) {
                                 emptyList()
@@ -117,7 +123,7 @@ class MainActivity : ComponentActivity() {
                                     decoded.split(",").mapNotNull { sizePrice ->
                                         val parts = sizePrice.split(":")
                                         if (parts.size == 2) {
-                                            CoffeeSizeResponse(
+                                            ProductVariantResponse(
                                                 size = parts[0],
                                                 price = parts[1].toFloatOrNull() ?: 0f
                                             )
@@ -130,13 +136,14 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            val coffee = CoffeeResponse(
+                            val coffee = ProductResponse(
                                 id = coffeeId,
-                                type = CoffeeTypeResponse(0, coffeeType),
+                                type = ProductCategoryResponse(0, coffeeType),
                                 name = coffeeName,
                                 description = coffeeDescription,
                                 sizes = sizes,
-                                imageName = imageName
+                                imageName = imageName,
+                                sellerId = sellerId.takeIf { it > 0 }
                             )
 
                             CoffeeDetailScreen(
@@ -171,8 +178,8 @@ class MainActivity : ComponentActivity() {
                                 try {
                                     val decoded = URLDecoder.decode(selectedItemsJson, "UTF-8")
                                     val gson = Gson()
-                                    val type = object : TypeToken<List<CoffeeCartResponse>>() {}.type
-                                    gson.fromJson<List<CoffeeCartResponse>>(decoded, type) ?: emptyList()
+                                    val type = object : TypeToken<List<CartItemResponse>>() {}.type
+                                    gson.fromJson<List<CartItemResponse>>(decoded, type) ?: emptyList()
                                 } catch (e: Exception) {
                                     emptyList()
                                 }
@@ -193,7 +200,6 @@ class MainActivity : ComponentActivity() {
                             PickupReadyScreen(navController = navController)
                         }
                         composable(NavigationRoutes.SETTINGS) {
-                            // Передаем функцию обновления темы в SettingsScreen
                             SettingsScreen(
                                 navController = navController,
                                 onThemeChanged = { newTheme ->
@@ -204,6 +210,18 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(NavigationRoutes.ORDER_HISTORY) {
                             OrderHistoryScreen(navController = navController)
+                        }
+                        composable(NavigationRoutes.SELLER_DASHBOARD) {
+                            SellerDashboardScreen(navController = navController)
+                        }
+                        composable(
+                            route = "${NavigationRoutes.SELLER_STORE}/{sellerId}",
+                            arguments = listOf(
+                                navArgument("sellerId") { type = NavType.LongType }
+                            )
+                        ) { backStackEntry ->
+                            val sellerId = backStackEntry.arguments?.getLong("sellerId") ?: return@composable
+                            SellerStoreScreen(navController = navController, sellerId = sellerId)
                         }
                     }
                 }

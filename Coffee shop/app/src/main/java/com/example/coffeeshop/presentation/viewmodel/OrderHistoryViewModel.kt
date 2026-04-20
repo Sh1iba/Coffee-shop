@@ -1,19 +1,19 @@
-package com.example.coffeeshop.presentation.screens.orderhistory
+package com.example.coffeeshop.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.coffeeshop.data.managers.PrefsManager
 import com.example.coffeeshop.data.remote.response.OrderResponse
-import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.data.repository.OrderRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class OrderHistoryViewModel(
-    private val repository: CoffeeRepository,
-    private val prefsManager: PrefsManager
+@HiltViewModel
+class OrderHistoryViewModel @Inject constructor(
+    private val orderRepository: OrderRepository
 ) : ViewModel() {
 
     private val _orders = MutableStateFlow<List<OrderResponse>>(emptyList())
@@ -27,18 +27,10 @@ class OrderHistoryViewModel(
 
     fun loadOrderHistory() {
         viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
             try {
-                _isLoading.value = true
-                _error.value = null
-
-                val token = prefsManager.getToken()
-                if (token == null) {
-                    _error.value = "Необходима авторизация"
-                    return@launch
-                }
-
-                val history = repository.getOrderHistory(token)
-                _orders.value = history
+                _orders.value = orderRepository.getOrderHistory()
             } catch (e: Exception) {
                 _error.value = e.message ?: "Неизвестная ошибка"
             } finally {
@@ -47,20 +39,15 @@ class OrderHistoryViewModel(
         }
     }
 
-    fun clearError() {
-        _error.value = null
-    }
-}
-
-class OrderHistoryViewModelFactory(
-    private val repository: CoffeeRepository,
-    private val prefsManager: PrefsManager
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(OrderHistoryViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return OrderHistoryViewModel(repository, prefsManager) as T
+    fun cancelOrder(orderId: Long) {
+        viewModelScope.launch {
+            try {
+                if (orderRepository.cancelOrder(orderId)) loadOrderHistory()
+            } catch (e: Exception) {
+                _error.value = e.message
+            }
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
+
+    fun clearError() { _error.value = null }
 }

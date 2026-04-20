@@ -79,22 +79,15 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
-import com.example.coffeeshop.data.managers.LocationManager
-import com.example.coffeeshop.data.managers.PrefsManager
-import com.example.coffeeshop.data.remote.api.ApiClient
-import com.example.coffeeshop.data.remote.response.CoffeeCartResponse
-import com.example.coffeeshop.data.remote.response.CoffeeResponse
-import com.example.coffeeshop.data.remote.response.CoffeeSizeResponse
-import com.example.coffeeshop.data.remote.response.CoffeeTypeResponse
-import com.example.coffeeshop.data.repository.AddressRepository
-import com.example.coffeeshop.data.repository.CoffeeRepository
+import com.example.coffeeshop.data.remote.response.CartItemResponse
+import com.example.coffeeshop.data.remote.response.ProductResponse
+import com.example.coffeeshop.data.remote.response.ProductVariantResponse
+import com.example.coffeeshop.data.remote.response.ProductCategoryResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
 import com.example.coffeeshop.presentation.theme.CoffeeShopTheme
 import com.example.coffeeshop.presentation.theme.SoraFontFamily
@@ -114,7 +107,7 @@ import java.math.BigDecimal
 
 
 data class OrderData(
-    val items: List<CoffeeCartResponse>,
+    val items: List<CartItemResponse>,
     val address: String,
     val note: String,
     val totalPrice: Double,
@@ -124,33 +117,11 @@ data class OrderData(
 @Composable
 fun OrderScreen(
     navController: NavController,
-    selectedItems: List<CoffeeCartResponse> = emptyList(),
+    selectedItems: List<CartItemResponse> = emptyList(),
     totalPrice: Double = 0.0
 ) {
-    val context = LocalContext.current
-    val prefsManager = PrefsManager(context)
-
-    val viewModel: OrderViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return OrderViewModel(
-                    repository = CoffeeRepository(ApiClient.coffeeApi),
-                    prefsManager = prefsManager
-                ) as T
-            }
-        }
-    )
-
-    val locationViewModel: LocationViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return LocationViewModel(
-                    locationManager = LocationManager(context),
-                    addressRepository = AddressRepository()
-                ) as T
-            }
-        }
-    )
+    val viewModel: OrderViewModel = hiltViewModel()
+    val locationViewModel: LocationViewModel = hiltViewModel()
 
     val orderItems by viewModel.orderItems.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -880,10 +851,10 @@ fun BottomOrderPanel(
     walletBalance: String,
     totalPrice: Double,
     deliveryType: String,
-    selectedItems: List<CoffeeCartResponse>,
+    selectedItems: List<CartItemResponse>,
     locationState: LocationState,
     addressNote: String,
-    onOrderClick: (List<CoffeeCartResponse>, String, String, Double, Double) -> Unit = { _, _, _, _, _ -> }
+    onOrderClick: (List<CartItemResponse>, String, String, Double, Double) -> Unit = { _, _, _, _, _ -> }
 ) {
     val deliveryFee = if (deliveryType == "Доставка") 50.00 else 0.00
     val finalTotalPrice = totalPrice + deliveryFee
@@ -1044,7 +1015,7 @@ fun OrderCoffeeCard(
 @Composable
 fun OrderScreenPreview(){
     val mockItems = listOf(
-        CoffeeCartResponse(
+        CartItemResponse(
             id = 1,
             name = "Cappuccino с очень длинным названием которое может сдвигать элементы",
             selectedSize = "M",
@@ -1053,7 +1024,7 @@ fun OrderScreenPreview(){
             totalPrice = 6.00f,
             imageName = "cappuccino.jpg"
         ),
-        CoffeeCartResponse(
+        CartItemResponse(
             id = 2,
             name = "Latte",
             selectedSize = "L",

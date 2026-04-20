@@ -23,7 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.coffeeshop.data.managers.PrefsManager
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.coffeeshop.navigation.NavigationRoutes
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,9 +41,8 @@ fun SettingsScreen(
     navController: NavController,
     onThemeChanged: (Boolean) -> Unit
 ) {
+    val viewModel: SettingsViewModel = hiltViewModel()
     val context = LocalContext.current
-    val prefsManager = remember { PrefsManager(context) }
-    val viewModel = remember { SettingsViewModel(prefsManager) }
 
     val darkModeEnabled by viewModel.darkModeState.collectAsState()
     val notificationsEnabled by viewModel.notificationsState.collectAsState()
@@ -104,7 +103,7 @@ fun SettingsScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                UserInfoSection(prefsManager)
+                UserInfoSection(viewModel)
 
                 Divider(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -132,7 +131,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun UserInfoSection(prefsManager: PrefsManager) {
+private fun UserInfoSection(viewModel: SettingsViewModel) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -169,8 +168,8 @@ private fun UserInfoSection(prefsManager: PrefsManager) {
                     ),
                 )
 
-                val userName = prefsManager.getName() ?: "Пользователь"
-                val userEmail = prefsManager.getEmail() ?: "email@example.com"
+                val userName by viewModel.userName.collectAsState()
+                val userEmail by viewModel.userEmail.collectAsState()
 
                 Text(
                     text = userName,
@@ -209,6 +208,7 @@ private fun SettingsOptionsSection(
     onNotificationsChanged: (Boolean) -> Unit
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
+    val isSeller by viewModel.isSeller.collectAsState()
 
     // Уведомления
     SettingsItem(
@@ -253,6 +253,15 @@ private fun SettingsOptionsSection(
             )
         }
     )
+
+    if (isSeller) {
+        SettingsItem(
+            title = "Панель продавца",
+            subtitle = "Управление магазином и товарами",
+            leadingIcon = Icons.TwoTone.ShoppingCart,
+            onClick = { navController.navigate(NavigationRoutes.SELLER_DASHBOARD) }
+        )
+    }
 
     SettingsItem(
         title = "История заказов",
@@ -329,8 +338,7 @@ private fun SettingsOptionsSection(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val prefsManager = PrefsManager(context)
-                        prefsManager.logout()
+                        viewModel.logout()
                         navController.navigate(NavigationRoutes.SIGN_IN) {
                             popUpTo(NavigationRoutes.HOME) {
                                 inclusive = true
