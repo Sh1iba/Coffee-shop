@@ -934,71 +934,6 @@ fun SellerChipCard(seller: SellerResponse, onClick: () -> Unit) {
 }
 
 @Composable
-fun CoffeeCategoryRow(
-    onCoffeeTypeSelected: (Int?) -> Unit,
-    viewModel: HomeViewModel,
-    modifier: Modifier = Modifier
-) {
-    val homeState by viewModel.uiState.collectAsState()
-
-    val selectedItem = remember {
-        mutableStateOf(viewModel.getCurrentSelectedType() ?: "Все кофе")
-    }
-
-    val isTablet = LocalConfiguration.current.screenWidthDp >= 600
-    val fontSize = if (isTablet) 16.sp else 14.sp
-
-    LaunchedEffect(viewModel.getCurrentSelectedType()) {
-        viewModel.getCurrentSelectedType()?.let { type ->
-            if (type != selectedItem.value) {
-                selectedItem.value = type
-            }
-        }
-    }
-
-    LazyRow(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(end = 8.dp)
-    ) {
-        items(homeState.productTypes) { item ->
-            Box(
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .background(
-                        color = if (item == selectedItem.value) colorDarkOrange else MaterialTheme.colorScheme.surfaceTint,
-                        shape = RoundedCornerShape(6.dp)
-                    )
-                    .padding(
-                        top = 4.dp,
-                        bottom = 4.dp,
-                        start = 8.dp,
-                        end = 8.dp
-                    )
-                    .clickable {
-                        selectedItem.value = item
-
-                        if (item == "Все товары") {
-                            onCoffeeTypeSelected(null)
-                        } else {
-                            val typeId = homeState.productTypeMapping[item]
-                            onCoffeeTypeSelected(typeId)
-                        }
-                    }
-            ) {
-                Text(
-                    text = item,
-                    fontFamily = SoraFontFamily,
-                    fontWeight = if (item == selectedItem.value) FontWeight.W600 else FontWeight.W400,
-                    fontSize = fontSize,
-                    lineHeight = 21.sp,
-                    color = if (item == selectedItem.value) Color.White else MaterialTheme.colorScheme.outline,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 fun CoffeeCategoryColumn(
     productList: List<ProductResponse>,
     sellers: List<SellerResponse> = emptyList(),
@@ -1013,7 +948,7 @@ fun CoffeeCategoryColumn(
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(bottom = 110.dp)
+        contentPadding = PaddingValues(bottom = 16.dp)
     ) {
         if (sellers.isNotEmpty()) {
             item {
@@ -1044,6 +979,10 @@ fun CoffeeCategoryColumn(
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(250.dp))
         }
     }
 }

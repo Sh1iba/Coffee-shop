@@ -1,7 +1,9 @@
 package com.example.coffeeshop.presentation.viewmodel
 
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.coffeeshop.data.remote.response.ProductCategoryResponse
 import com.example.coffeeshop.data.remote.response.ProductResponse
 import com.example.coffeeshop.data.remote.response.SellerOrderResponse
 import com.example.coffeeshop.data.remote.response.SellerResponse
@@ -12,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import okhttp3.MultipartBody
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,8 +31,17 @@ class SellerViewModel @Inject constructor(
     private val _myOrders = MutableStateFlow<List<SellerOrderResponse>>(emptyList())
     val myOrders: StateFlow<List<SellerOrderResponse>> = _myOrders
 
+    private val _categories = MutableStateFlow<List<ProductCategoryResponse>>(emptyList())
+    val categories: StateFlow<List<ProductCategoryResponse>> = _categories
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
+
+    private val _isUploading = MutableStateFlow(false)
+    val isUploading: StateFlow<Boolean> = _isUploading
+
+    private val _imageCache = mutableStateMapOf<String, ByteArray?>()
+    val imageCache: Map<String, ByteArray?> get() = _imageCache
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
@@ -48,7 +60,13 @@ class SellerViewModel @Inject constructor(
 
     fun loadMyProducts() {
         viewModelScope.launch {
-            _myProducts.value = sellerRepository.getMyProducts()
+            val products = sellerRepository.getMyProducts()
+            _myProducts.value = products
+            products.forEach { p ->
+                if (p.imageName.isNotEmpty() && !_imageCache.containsKey(p.imageName)) {
+                    _imageCache[p.imageName] = sellerRepository.getProductImage(p.imageName)
+                }
+            }
         }
     }
 
@@ -117,6 +135,23 @@ class SellerViewModel @Inject constructor(
             } else {
                 _error.value = "Не удалось удалить товар"
             }
+        }
+    }
+
+    fun loadCategories() {
+        viewModelScope.launch {
+            if (_categories.value.isEmpty()) {
+                _categories.value = sellerRepository.getCategories()
+            }
+        }
+    }
+
+    fun uploadImage(file: MultipartBody.Part, onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            _isUploading.value = true
+            val name = sellerRepository.uploadProductImage(file)
+            _isUploading.value = false
+            onResult(name)
         }
     }
 

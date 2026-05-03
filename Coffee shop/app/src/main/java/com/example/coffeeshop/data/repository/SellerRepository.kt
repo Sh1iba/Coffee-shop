@@ -64,4 +64,13 @@ class SellerRepository @Inject constructor(
         val r = apiService.uploadProductImage(file)
         if (r.isSuccessful) r.body()?.get("imageName") else null
     } catch (e: Exception) { null }
+
+    suspend fun getCategories(): List<com.example.coffeeshop.data.remote.response.ProductCategoryResponse> = try {
+        apiService.getAllCoffeeTypes().body() ?: emptyList()
+    } catch (e: Exception) { emptyList() }
+
+    suspend fun getProductImage(imageName: String): ByteArray? = try {
+        val r = apiService.getCoffeeImage(imageName)
+        if (r.isSuccessful) r.body()?.bytes() else null
+    } catch (e: Exception) { null }
 }
