@@ -76,6 +76,19 @@ class SellerViewModel @Inject constructor(
         }
     }
 
+    fun updateOrderStatus(orderId: Long, status: String) {
+        viewModelScope.launch {
+            val ok = sellerRepository.updateOrderStatus(orderId, status)
+            if (ok) {
+                _myOrders.value = _myOrders.value.map { order ->
+                    if (order.orderId == orderId) order.copy(status = status) else order
+                }
+            } else {
+                _error.value = "Не удалось обновить статус заказа"
+            }
+        }
+    }
+
     fun createShop(request: SellerRequest, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true

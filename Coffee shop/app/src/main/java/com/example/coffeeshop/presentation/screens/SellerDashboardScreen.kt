@@ -147,7 +147,7 @@ fun SellerDashboardScreen(navController: NavController) {
                 when (selectedTab) {
                     0 -> ShopTab(myShop, viewModel)
                     1 -> ProductsTab(myProducts, viewModel)
-                    2 -> OrdersTab(myOrders)
+                    2 -> OrdersTab(myOrders, viewModel)
                 }
             }
 
@@ -504,7 +504,7 @@ private fun ProductItemCard(
 }
 
 @Composable
-private fun OrdersTab(orders: List<SellerOrderResponse>) {
+private fun OrdersTab(orders: List<SellerOrderResponse>, viewModel: SellerViewModel) {
     if (orders.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -518,14 +518,42 @@ private fun OrdersTab(orders: List<SellerOrderResponse>) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(orders) { order ->
-                SellerOrderCard(order)
+                SellerOrderCard(order, onStatusUpdate = { newStatus ->
+                    viewModel.updateOrderStatus(order.orderId, newStatus)
+                })
             }
         }
     }
 }
 
+private fun nextSellerStatus(current: String): String? = when (current) {
+    "PENDING"    -> "CONFIRMED"
+    "CONFIRMED"  -> "PROCESSING"
+    "PROCESSING" -> "READY"
+    "READY"      -> "DELIVERED"
+    else         -> null
+}
+
+private fun statusLabel(status: String) = when (status) {
+    "PENDING"    -> "Ожидает"
+    "CONFIRMED"  -> "Подтверждён"
+    "PROCESSING" -> "Готовится"
+    "READY"      -> "Готов"
+    "DELIVERED"  -> "Доставлен"
+    "CANCELLED"  -> "Отменён"
+    else         -> status
+}
+
+private fun statusColor(status: String) = when (status) {
+    "DELIVERED" -> Color(0xFF4CAF50)
+    "CANCELLED" -> Color(0xFFE53935)
+    else        -> null
+}
+
 @Composable
-private fun SellerOrderCard(order: SellerOrderResponse) {
+private fun SellerOrderCard(order: SellerOrderResponse, onStatusUpdate: (String) -> Unit) {
+    val nextStatus = nextSellerStatus(order.status)
+    val chipColor = statusColor(order.status)
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -542,15 +570,15 @@ private fun SellerOrderCard(order: SellerOrderResponse) {
                 )
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = colorDarkOrange.copy(alpha = 0.15f)
+                    color = (chipColor ?: colorDarkOrange).copy(alpha = 0.15f)
                 ) {
                     Text(
-                        order.status,
+                        statusLabel(order.status),
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.W600,
                         fontSize = 11.sp,
-                        color = colorDarkOrange
+                        color = chipColor ?: colorDarkOrange
                     )
                 }
             }
@@ -579,7 +607,11 @@ private fun SellerOrderCard(order: SellerOrderResponse) {
                 }
             }
             Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     "Итого: ${order.itemsTotal}₽",
                     fontFamily = SoraFontFamily,
@@ -587,6 +619,21 @@ private fun SellerOrderCard(order: SellerOrderResponse) {
                     fontSize = 15.sp,
                     color = colorDarkOrange
                 )
+                if (nextStatus != null) {
+                    Button(
+                        onClick = { onStatusUpdate(nextStatus) },
+                        colors = ButtonDefaults.buttonColors(containerColor = colorDarkOrange),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            "→ ${statusLabel(nextStatus)}",
+                            fontFamily = SoraFontFamily,
+                            fontWeight = FontWeight.W600,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
             }
         }
     }

@@ -2,6 +2,7 @@ package com.example.coffeeshop.data.remote.api
 
 import com.example.coffeeshop.data.remote.response.ApiResponse
 import com.example.coffeeshop.data.remote.response.CartSummaryResponse
+import com.example.coffeeshop.data.remote.response.CreateOrderResponse
 import com.example.coffeeshop.data.remote.response.ProductResponse
 import com.example.coffeeshop.data.remote.response.FavoriteProductResponse
 import com.example.coffeeshop.data.remote.response.ProductCategoryResponse
@@ -15,6 +16,7 @@ import com.example.coffeeshop.domain.CartItemRequest
 import com.example.coffeeshop.domain.FavoriteProductRequest
 import com.example.coffeeshop.domain.LoginRequest
 import com.example.coffeeshop.domain.OrderRequest
+import com.example.coffeeshop.domain.OrderStatusRequest
 import com.example.coffeeshop.domain.ProductManageRequest
 import com.example.coffeeshop.domain.RegisterRequest
 import com.example.coffeeshop.domain.SellerRequest
@@ -91,7 +93,7 @@ interface ApiService {
 
     // ── ЗАКАЗЫ ───────────────────────────────────────────────────────────── 
     @POST("products/checkout")
-    suspend fun createOrder(@Body request: OrderRequest): Response<ApiResponse>
+    suspend fun createOrder(@Body request: OrderRequest): Response<CreateOrderResponse>
 
     @GET("products/orders/history")
     suspend fun getOrderHistory(): Response<List<OrderResponse>>
@@ -136,6 +138,12 @@ interface ApiService {
 
     @GET("sellers/me/orders")
     suspend fun getMySellerOrders(): Response<List<SellerOrderResponse>>
+
+    @PUT("sellers/me/orders/{orderId}/status")
+    suspend fun updateSellerOrderStatus(
+        @Path("orderId") orderId: Long,
+        @Body request: OrderStatusRequest
+    ): Response<ApiResponse>
 
     @Multipart
     @POST("sellers/me/upload-image")

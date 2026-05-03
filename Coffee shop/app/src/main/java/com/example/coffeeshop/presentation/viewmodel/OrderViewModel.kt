@@ -47,11 +47,8 @@ class OrderViewModel @Inject constructor(
     private val _showNoteDialog = MutableStateFlow(false)
     val showNoteDialog: StateFlow<Boolean> = _showNoteDialog.asStateFlow()
 
-    private val _navigateToActiveOrder = MutableStateFlow(false)
-    val navigateToActiveOrder: StateFlow<Boolean> = _navigateToActiveOrder.asStateFlow()
-
-    private val _navigateToPickupReady = MutableStateFlow(false)
-    val navigateToPickupReady: StateFlow<Boolean> = _navigateToPickupReady.asStateFlow()
+    private val _navigateToOrders = MutableStateFlow(false)
+    val navigateToOrders: StateFlow<Boolean> = _navigateToOrders.asStateFlow()
 
     fun parseAddress(fullAddress: String): ParsedAddress {
         if (fullAddress.isEmpty()) return ParsedAddress("", "")
@@ -91,14 +88,9 @@ class OrderViewModel @Inject constructor(
             _error.value = null
             try {
                 val fullAddress = if (note.isNotEmpty()) "$address ($note)" else address
-                val success = orderRepository.createOrder(items, fullAddress, deliveryFee)
-                if (success) {
-                    if (deliveryFee > 0.0) {
-                        prefsManager.saveLong("order_start_ts", System.currentTimeMillis())
-                        _navigateToActiveOrder.value = true
-                    } else {
-                        _navigateToPickupReady.value = true
-                    }
+                val orderId = orderRepository.createOrder(items, fullAddress, deliveryFee)
+                if (orderId != null) {
+                    _navigateToOrders.value = true
                     clearAddressNote(address)
                 } else {
                     _error.value = "Ошибка при создании заказа"
@@ -112,8 +104,7 @@ class OrderViewModel @Inject constructor(
     }
 
     fun resetAllNavigation() {
-        _navigateToActiveOrder.value = false
-        _navigateToPickupReady.value = false
+        _navigateToOrders.value = false
     }
 
     fun loadOrderItems(cartItems: List<CartItemResponse>) {

@@ -128,7 +128,7 @@ fun OrderScreen(
     val error by viewModel.error.collectAsState()
     val addressNote by viewModel.addressNote.collectAsState()
     val showNoteDialog by viewModel.showNoteDialog.collectAsState()
-    val navigateToActiveOrder by viewModel.navigateToActiveOrder.collectAsState()
+    val navigateToOrders by viewModel.navigateToOrders.collectAsState()
 
     val locationState by locationViewModel.uiState.collectAsState()
 
@@ -136,23 +136,11 @@ fun OrderScreen(
     var showAddressConfirmationDialog by remember { mutableStateOf(false) }
     var tempOrderData by remember { mutableStateOf<OrderData?>(null) }
 
-    val navigateToPickupReady by viewModel.navigateToPickupReady.collectAsState()
-
-
-    LaunchedEffect(navigateToPickupReady) {
-        if (navigateToPickupReady) {
+    LaunchedEffect(navigateToOrders) {
+        if (navigateToOrders) {
             viewModel.resetAllNavigation()
-            navController.navigate(NavigationRoutes.PICKUP_READY_ORDER) {
-                popUpTo(NavigationRoutes.HOME) { inclusive = true }
-            }
-        }
-    }
-
-    LaunchedEffect(navigateToActiveOrder) {
-        if (navigateToActiveOrder) {
-            viewModel.resetAllNavigation()
-            navController.navigate(NavigationRoutes.ACTIVE_ORDER) {
-                popUpTo(NavigationRoutes.HOME) { inclusive = true }
+            navController.navigate(NavigationRoutes.ORDER_HISTORY) {
+                popUpTo(NavigationRoutes.HOME) { inclusive = false }
             }
         }
     }

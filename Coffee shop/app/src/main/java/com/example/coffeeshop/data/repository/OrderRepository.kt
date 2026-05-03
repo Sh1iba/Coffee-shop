@@ -17,16 +17,26 @@ class OrderRepository @Inject constructor(
         items: List<CartItemResponse>,
         address: String,
         deliveryFee: Double
-    ): Boolean {
+    ): Long? {
         return try {
             val request = OrderRequest(
                 deliveryAddress = address,
                 deliveryFee = BigDecimal.valueOf(deliveryFee),
                 items = items.map { OrderCartItem(coffeeId = it.id, selectedSize = it.selectedSize) }
             )
-            apiService.createOrder(request).isSuccessful
+            val r = apiService.createOrder(request)
+            if (r.isSuccessful) r.body()?.orderId else null
         } catch (e: Exception) {
-            false
+            null
+        }
+    }
+
+    suspend fun getOrderDetails(orderId: Long): OrderResponse? {
+        return try {
+            val r = apiService.getOrderDetails(orderId)
+            if (r.isSuccessful) r.body() else null
+        } catch (e: Exception) {
+            null
         }
     }
 

@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
                                 NavigationRoutes.HOME,
                                 NavigationRoutes.FAVORITE,
                                 NavigationRoutes.CART,
+                                NavigationRoutes.ORDER_HISTORY,
                                 NavigationRoutes.SETTINGS
                             )) {
                             BottomMenu(navController = navController)
@@ -193,7 +194,12 @@ class MainActivity : ComponentActivity() {
                                 totalPrice = totalPrice.toDouble()
                             )
                         }
-                        composable(NavigationRoutes.ACTIVE_ORDER) {
+                        composable(
+                            route = "${NavigationRoutes.ACTIVE_ORDER}/{orderId}",
+                            arguments = listOf(
+                                navArgument("orderId") { type = NavType.LongType; defaultValue = 0L }
+                            )
+                        ) {
                             ActiveOrderScreen(navController = navController)
                         }
                         composable(NavigationRoutes.PICKUP_READY_ORDER) {

@@ -14,7 +14,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,12 +30,8 @@ import com.example.coffeeshop.presentation.viewmodel.ActiveOrderViewModel
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
-fun ActiveOrderScreen(
-    navController: NavController,
-    deliveryTimeMinutes: Float = 0.5F
-) {
+fun ActiveOrderScreen(navController: NavController) {
     val viewModel: ActiveOrderViewModel = hiltViewModel()
-
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -47,20 +42,14 @@ fun ActiveOrderScreen(
                         popUpTo(0) { inclusive = true }
                     }
                 }
-                else -> {}
             }
         }
     }
 
     ActiveOrderContent(
         state = state,
-        onBackClick = {
-            viewModel.onEvent(ActiveOrderEvent.NavigateToHome)
-        },
-        onPickupClick = {
-
-            viewModel.onEvent(ActiveOrderEvent.NavigateToHome)
-        }
+        onBackClick = { viewModel.onEvent(ActiveOrderEvent.NavigateToHome) },
+        onPickupClick = { viewModel.onEvent(ActiveOrderEvent.NavigateToHome) }
     )
 }
 
@@ -70,20 +59,21 @@ fun ActiveOrderContent(
     onBackClick: () -> Unit,
     onPickupClick: () -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition()
+    val infiniteTransition = rememberInfiniteTransition(label = "courier")
     val courierProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(8000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
-        )
+        ),
+        label = "courierPos"
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
             painter = painterResource(id = R.drawable.map),
-            contentDescription = "Фон с картой",
+            contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
@@ -92,32 +82,29 @@ fun ActiveOrderContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = 280.dp)
-                .background(Color.Transparent)
         ) {
             Image(
                 painter = painterResource(id = R.drawable.deliver),
-                contentDescription = "Точка отправления (A)",
+                contentDescription = null,
                 modifier = Modifier
                     .size(44.dp)
                     .align(Alignment.TopStart)
                     .offset(x = 50.dp, y = 100.dp),
                 contentScale = ContentScale.Fit
             )
-
             Image(
                 painter = painterResource(id = R.drawable.location),
-                contentDescription = "Точка назначения (B)",
+                contentDescription = null,
                 modifier = Modifier
                     .size(44.dp)
                     .align(Alignment.BottomEnd)
                     .offset(x = (-50).dp, y = (-100).dp),
                 contentScale = ContentScale.Fit
             )
-
             if (!state.isOrderDelivered) {
                 Image(
                     painter = painterResource(R.drawable.cart),
-                    contentDescription = "Курьер в пути",
+                    contentDescription = null,
                     modifier = Modifier
                         .size(50.dp)
                         .offset(
@@ -128,7 +115,7 @@ fun ActiveOrderContent(
             } else {
                 Image(
                     painter = painterResource(R.drawable.cart),
-                    contentDescription = "Курьер на месте",
+                    contentDescription = null,
                     modifier = Modifier
                         .size(44.dp)
                         .align(Alignment.BottomEnd)
@@ -161,61 +148,63 @@ fun OrderStatusPanel(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                colorScheme.surface,
-                RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
+            .background(colorScheme.surface, RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
             .padding(24.dp)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = if (!state.isOrderDelivered) "Заказ в пути" else "Заказ прибыл!",
-                fontSize = 22.sp,
-                fontFamily = SoraFontFamily,
-                fontWeight = FontWeight.W600,
-                color = colorScheme.outline
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            if (!state.isOrderDelivered) {
+            if (state.isLoading) {
+                CircularProgressIndicator(color = colorDarkOrange, modifier = Modifier.size(36.dp))
+                Spacer(Modifier.height(12.dp))
+                Text("Загружаем статус...", fontFamily = SoraFontFamily, fontSize = 14.sp, color = colorScheme.onSurfaceVariant)
+            } else {
                 Text(
-                    text = if (state.timeLeft < 60) {
-                        "Доставка через ${state.timeLeft} сек"
-                    } else {
-                        "Доставка через ${state.minutes} мин ${state.seconds} сек"
-                    },
-                    fontSize = 16.sp,
+                    text = state.statusLabel,
+                    fontSize = 22.sp,
                     fontFamily = SoraFontFamily,
-                    fontWeight = FontWeight.W500,
-                    color = colorDarkOrange
+                    fontWeight = FontWeight.W600,
+                    color = colorScheme.outline
                 )
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(12.dp))
 
-                DeliveryProgress(progress = state.progress)
-            } else {
-                OrderDeliveredMessage()
+                if (!state.isOrderDelivered && !state.isOrderCancelled) {
+                    Text(
+                        text = "Обновляется автоматически каждые 5 сек",
+                        fontSize = 12.sp,
+                        fontFamily = SoraFontFamily,
+                        color = colorScheme.outlineVariant
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    DeliveryProgress(status = state.status, progress = state.progress)
+                } else if (state.isOrderCancelled) {
+                    Text(
+                        text = "Свяжитесь с поддержкой, если это ошибка",
+                        fontSize = 14.sp,
+                        fontFamily = SoraFontFamily,
+                        color = colorScheme.error
+                    )
+                } else {
+                    OrderDeliveredMessage()
+                }
+
+                Spacer(Modifier.height(32.dp))
+
+                ActiveOrderButton(
+                    isOrderDelivered = state.isOrderDelivered || state.isOrderCancelled,
+                    isCancelled = state.isOrderCancelled,
+                    onPickupClick = onPickupClick
+                )
             }
-
-            Spacer(Modifier.height(32.dp))
-
-            ActiveOrderButton(
-                isOrderDelivered = state.isOrderDelivered,
-                onPickupClick = onPickupClick
-            )
         }
     }
 }
 
 @Composable
-fun DeliveryProgress(progress: Float) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.Start
-    ) {
+fun DeliveryProgress(status: String, progress: Float) {
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
         Text(
             text = "Статус доставки:",
             fontSize = 14.sp,
@@ -235,34 +224,20 @@ fun DeliveryProgress(progress: Float) {
 
         Spacer(Modifier.height(8.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            DeliveryStage(
-                text = "Заказ принят",
-                isActive = progress > 0f
-            )
-            DeliveryStage(
-                text = "В пути",
-                isActive = progress > 0.3f
-            )
-            DeliveryStage(
-                text = "Доставлен",
-                isActive = progress >= 1f
-            )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            DeliveryStage("Принят", status !in listOf(""))
+            DeliveryStage("Готовится", status in listOf("PROCESSING", "READY", "DELIVERED"))
+            DeliveryStage("Готов", status in listOf("READY", "DELIVERED"))
+            DeliveryStage("Доставлен", status == "DELIVERED")
         }
     }
 }
 
 @Composable
-fun DeliveryStage(
-    text: String,
-    isActive: Boolean
-) {
+fun DeliveryStage(text: String, isActive: Boolean) {
     Text(
         text = text,
-        fontSize = 12.sp,
+        fontSize = 11.sp,
         color = if (isActive) colorDarkOrange else Color.Gray,
         fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
     )
@@ -270,11 +245,9 @@ fun DeliveryStage(
 
 @Composable
 fun OrderDeliveredMessage() {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = "Ваш заказ ждет вас!",
+            text = "Ваш заказ ждёт вас!",
             fontSize = 16.sp,
             color = Color.Gray,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -291,62 +264,40 @@ fun OrderDeliveredMessage() {
 @Composable
 fun ActiveOrderButton(
     isOrderDelivered: Boolean,
+    isCancelled: Boolean = false,
     onPickupClick: () -> Unit
 ) {
-    if (isOrderDelivered) {
-        Button(
-            onClick = onPickupClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colorDarkOrange
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Text(
-                text = "Забрать заказ",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.W600,
-                fontFamily = SoraFontFamily,
-                color = Color.White
-            )
-        }
-    } else {
-        Button(
-            onClick = {},
-            enabled = false,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFE0E0E0),
-                disabledContainerColor = Color(0xFFE0E0E0)
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Text(
-                text = "Заказ в пути...",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.W600,
-                color = colorScheme.outlineVariant
-            )
-        }
+    Button(
+        onClick = onPickupClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isCancelled) colorScheme.error else colorDarkOrange
+        ),
+        enabled = isOrderDelivered,
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Text(
+            text = when {
+                isCancelled     -> "Заказ отменён — на главную"
+                isOrderDelivered -> "Заказ получен!"
+                else             -> "Доставка в процессе..."
+            },
+            fontSize = 17.sp,
+            fontWeight = FontWeight.W600,
+            fontFamily = SoraFontFamily,
+            color = Color.White
+        )
     }
 }
 
 @Composable
-fun BackButton(
-    onBackClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun BackButton(onBackClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(modifier = modifier) {
         IconButton(
             onClick = onBackClick,
             modifier = Modifier
                 .size(44.dp)
-                .background(colorScheme.surface,
-                    RoundedCornerShape(12.dp))
+                .background(colorScheme.surface, RoundedCornerShape(12.dp))
         ) {
             Image(
                 painter = painterResource(id = R.drawable.leftarrow),
@@ -356,20 +307,4 @@ fun BackButton(
             )
         }
     }
-}
-
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-@Composable
-fun ActiveOrderScreenPreview() {
-    ActiveOrderContent(
-        state = ActiveOrderState(
-            timeLeft = 30,
-            minutes = 0,
-            seconds = 30,
-            progress = 0.5f,
-            isOrderDelivered = false
-        ),
-        onBackClick = {},
-        onPickupClick = {}
-    )
 }

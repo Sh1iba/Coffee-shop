@@ -1,8 +1,9 @@
 package com.example.coffeeshop.presentation.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.coffeeshop.data.managers.PrefsManager
+import com.example.coffeeshop.data.repository.OrderRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -10,28 +11,26 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class ActiveOrderState(
-    val timeLeft: Int = 0,
+    val status: String = "PENDING",
+    val statusLabel: String = "Ожидает подтверждения",
+    val progress: Float = 0.05f,
     val isOrderDelivered: Boolean = false,
-    val progress: Float = 0f,
-    val minutes: Int = 0,
-    val seconds: Int = 0,
-    val isLoading: Boolean = false,
+    val isOrderCancelled: Boolean = false,
+    val isLoading: Boolean = true,
     val error: String? = null
 )
 
 sealed class ActiveOrderEvent {
-    object StartTimer : ActiveOrderEvent()
-    object ResetTimer : ActiveOrderEvent()
     object NavigateToHome : ActiveOrderEvent()
 }
 
 @HiltViewModel
 class ActiveOrderViewModel @Inject constructor(
-    private val prefsManager: PrefsManager
+    savedStateHandle: SavedStateHandle,
+    private val orderRepository: OrderRepository
 ) : ViewModel() {
 
-    private val deliveryTimeMinutes: Float = 0.5f
-    private val totalSeconds = (deliveryTimeMinutes * 60).toInt()
+    private val orderId: Long = savedStateHandle.get<Long>("orderId") ?: 0L
 
     private val _state = MutableStateFlow(ActiveOrderState())
     val state: StateFlow<ActiveOrderState> = _state.asStateFlow()
@@ -40,52 +39,64 @@ class ActiveOrderViewModel @Inject constructor(
     val events: SharedFlow<ActiveOrderEvent> = _events.asSharedFlow()
 
     init {
-        startTimer()
-        prefsManager.saveLong("order_start_ts", System.currentTimeMillis())
+        if (orderId > 0L) startPolling()
     }
 
-    private fun startTimer() {
+    private fun startPolling() {
         viewModelScope.launch {
-            _state.update { it.copy(timeLeft = totalSeconds) }
-            while (_state.value.timeLeft > 0) {
-                delay(1000)
-                val currentTimeLeft = _state.value.timeLeft - 1
-                _state.update {
-                    it.copy(
-                        timeLeft = currentTimeLeft,
-                        minutes = currentTimeLeft / 60,
-                        seconds = currentTimeLeft % 60,
-                        progress = 1f - (currentTimeLeft.toFloat() / totalSeconds.toFloat())
-                    )
+            while (true) {
+                try {
+                    val order = orderRepository.getOrderDetails(orderId)
+                    if (order != null) {
+                        val delivered = order.status == "DELIVERED"
+                        val cancelled = order.status == "CANCELLED"
+                        _state.update {
+                            it.copy(
+                                status = order.status,
+                                statusLabel = statusToLabel(order.status),
+                                progress = statusToProgress(order.status),
+                                isOrderDelivered = delivered,
+                                isOrderCancelled = cancelled,
+                                isLoading = false,
+                                error = null
+                            )
+                        }
+                        if (delivered || cancelled) break
+                    } else {
+                        _state.update { it.copy(isLoading = false) }
+                    }
+                } catch (e: Exception) {
+                    _state.update { it.copy(isLoading = false, error = "Ошибка соединения") }
                 }
+                delay(5000)
             }
-            _state.update { it.copy(isOrderDelivered = true) }
         }
     }
 
     fun onEvent(event: ActiveOrderEvent) {
         viewModelScope.launch {
             when (event) {
-                is ActiveOrderEvent.StartTimer -> {
-                    startTimer()
-                    prefsManager.saveLong("order_start_ts", System.currentTimeMillis())
-                }
-                is ActiveOrderEvent.ResetTimer -> resetTimer()
-                is ActiveOrderEvent.NavigateToHome -> {
-                    resetTimer()
-                    _events.emit(event)
-                }
+                is ActiveOrderEvent.NavigateToHome -> _events.emit(event)
             }
         }
     }
 
-    private fun resetTimer() {
-        prefsManager.saveLong("order_start_ts", 0)
-        _state.update { ActiveOrderState() }
+    private fun statusToLabel(status: String) = when (status) {
+        "PENDING"    -> "Ожидает подтверждения"
+        "CONFIRMED"  -> "Заказ подтверждён"
+        "PROCESSING" -> "Готовится..."
+        "READY"      -> "Готово! Ожидает курьера"
+        "DELIVERED"  -> "Доставлен!"
+        "CANCELLED"  -> "Заказ отменён"
+        else         -> status
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        resetTimer()
+    private fun statusToProgress(status: String) = when (status) {
+        "PENDING"    -> 0.1f
+        "CONFIRMED"  -> 0.3f
+        "PROCESSING" -> 0.6f
+        "READY"      -> 0.85f
+        "DELIVERED"  -> 1.0f
+        else         -> 0f
     }
 }

@@ -4,6 +4,7 @@ import com.example.coffeeshop.data.remote.api.ApiService
 import com.example.coffeeshop.data.remote.response.ProductResponse
 import com.example.coffeeshop.data.remote.response.SellerOrderResponse
 import com.example.coffeeshop.data.remote.response.SellerResponse
+import com.example.coffeeshop.domain.OrderStatusRequest
 import com.example.coffeeshop.domain.ProductManageRequest
 import com.example.coffeeshop.domain.SellerRequest
 import okhttp3.MultipartBody
@@ -64,6 +65,10 @@ class SellerRepository @Inject constructor(
         val r = apiService.uploadProductImage(file)
         if (r.isSuccessful) r.body()?.get("imageName") else null
     } catch (e: Exception) { null }
+
+    suspend fun updateOrderStatus(orderId: Long, status: String): Boolean = try {
+        apiService.updateSellerOrderStatus(orderId, OrderStatusRequest(status)).isSuccessful
+    } catch (e: Exception) { false }
 
     suspend fun getCategories(): List<com.example.coffeeshop.data.remote.response.ProductCategoryResponse> = try {
         apiService.getAllCoffeeTypes().body() ?: emptyList()
