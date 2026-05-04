@@ -261,6 +261,13 @@ private fun SettingsOptionsSection(
             leadingIcon = Icons.TwoTone.ShoppingCart,
             onClick = { navController.navigate(NavigationRoutes.SELLER_DASHBOARD) }
         )
+    } else {
+        SettingsItem(
+            title = "Стать продавцом",
+            subtitle = "Откройте свой магазин на платформе",
+            leadingIcon = Icons.TwoTone.ShoppingCart,
+            onClick = { navController.navigate(NavigationRoutes.BECOME_SELLER) }
+        )
     }
 
     SettingsItem(

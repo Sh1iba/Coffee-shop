@@ -29,6 +29,11 @@ class SellerRepository @Inject constructor(
         if (r.isSuccessful) r.body() else null
     } catch (e: Exception) { null }
 
+    suspend fun becomeSeller(request: SellerRequest): SellerResponse? = try {
+        val r = apiService.becomeSeller(request)
+        if (r.isSuccessful) r.body() else null
+    } catch (e: Exception) { null }
+
     suspend fun createShop(request: SellerRequest): SellerResponse? = try {
         val r = apiService.createShop(request)
         if (r.isSuccessful) r.body() else null

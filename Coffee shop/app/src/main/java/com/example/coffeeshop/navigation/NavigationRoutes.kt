@@ -12,7 +12,9 @@ object NavigationRoutes {
     const val ACTIVE_ORDER = "active_order"
     const val PICKUP_READY_ORDER = "pickup_ready_order"
     const val SETTINGS = "settings"
+    const val MY_ORDERS     = "my_orders"
     const val ORDER_HISTORY = "order_history"
     const val SELLER_DASHBOARD = "seller_dashboard"
     const val SELLER_STORE = "seller_store"
+    const val BECOME_SELLER = "become_seller"
 }

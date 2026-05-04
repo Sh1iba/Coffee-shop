@@ -348,6 +348,12 @@ private fun ProductsTab(products: List<ProductResponse>, viewModel: SellerViewMo
     val isUploading by viewModel.isUploading.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var editingProduct by remember { mutableStateOf<ProductResponse?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredProducts = remember(products, searchQuery) {
+        if (searchQuery.isBlank()) products
+        else products.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    }
 
     LaunchedEffect(Unit) { viewModel.loadCategories() }
 
@@ -376,12 +382,42 @@ private fun ProductsTab(products: List<ProductResponse>, viewModel: SellerViewMo
             }
         }
 
+        if (products.isNotEmpty()) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Поиск товара...", fontFamily = SoraFontFamily, fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.TwoTone.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.TwoTone.Clear, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 12.dp),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = colorDarkOrange,
+                    focusedLabelColor = colorDarkOrange
+                )
+            )
+        }
+
         if (products.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.TwoTone.Place, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("Товары ещё не добавлены", fontFamily = SoraFontFamily, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+        } else if (filteredProducts.isEmpty()) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text("Ничего не найдено", fontFamily = SoraFontFamily, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             val imageCache = viewModel.imageCache
@@ -390,7 +426,7 @@ private fun ProductsTab(products: List<ProductResponse>, viewModel: SellerViewMo
                 contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(products) { product ->
+                items(filteredProducts) { product ->
                     ProductItemCard(
                         product = product,
                         imageBytes = imageCache[product.imageName],

@@ -1276,7 +1276,7 @@ fun BottomMenu(navController: NavController) {
         BottomMenuItem("Home", R.drawable.menu_home, R.drawable.selected_dot, NavigationRoutes.HOME),
         BottomMenuItem("Favorite", R.drawable.heart, R.drawable.selected_dot, NavigationRoutes.FAVORITE),
         BottomMenuItem("Cart", R.drawable.cart, R.drawable.selected_dot, NavigationRoutes.CART),
-        BottomMenuItem("Orders", R.drawable.note, R.drawable.selected_dot, NavigationRoutes.ORDER_HISTORY),
+        BottomMenuItem("Orders", R.drawable.note, R.drawable.selected_dot, NavigationRoutes.MY_ORDERS),
         BottomMenuItem("Settings", R.drawable.settings_foreground, R.drawable.selected_dot, NavigationRoutes.SETTINGS)
     )
 

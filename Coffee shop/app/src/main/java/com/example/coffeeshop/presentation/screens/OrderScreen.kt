@@ -139,7 +139,7 @@ fun OrderScreen(
     LaunchedEffect(navigateToOrders) {
         if (navigateToOrders) {
             viewModel.resetAllNavigation()
-            navController.navigate(NavigationRoutes.ORDER_HISTORY) {
+            navController.navigate(NavigationRoutes.MY_ORDERS) {
                 popUpTo(NavigationRoutes.HOME) { inclusive = false }
             }
         }

@@ -89,6 +89,10 @@ class PrefsManager(private val context: Context) {
 
     fun getRole(): String = sharedPreferences.getString(KEY_ROLE, "BUYER") ?: "BUYER"
 
+    fun saveRole(role: String) {
+        sharedPreferences.edit().putString(KEY_ROLE, role).apply()
+    }
+
     fun isSeller(): Boolean = getRole() == "SELLER"
 
     fun getToken(): String? = sharedPreferences.getString(KEY_TOKEN, null)

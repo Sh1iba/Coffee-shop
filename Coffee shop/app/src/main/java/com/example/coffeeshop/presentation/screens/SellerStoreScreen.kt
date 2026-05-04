@@ -3,9 +3,11 @@ package com.example.coffeeshop.presentation.screens
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.*
@@ -93,14 +95,28 @@ class SellerStoreViewModel @Inject constructor(
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SellerStoreScreen(navController: NavController, sellerId: Long) {
     val viewModel: SellerStoreViewModel = hiltViewModel()
 
-    val seller by viewModel.seller.collectAsState()
-    val products by viewModel.products.collectAsState()
+    val seller     by viewModel.seller.collectAsState()
+    val products   by viewModel.products.collectAsState()
     val imageCache by viewModel.imageCache.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val isLoading  by viewModel.isLoading.collectAsState()
+
+    var searchQuery      by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("Все") }
+
+    val categories = remember(products) {
+        listOf("Все") + products.map { it.type.type }.distinct()
+    }
+
+    val filteredProducts = remember(products, searchQuery, selectedCategory) {
+        products
+            .filter { if (selectedCategory == "Все") true else it.type.type == selectedCategory }
+            .filter { if (searchQuery.isBlank()) true else it.name.contains(searchQuery, ignoreCase = true) }
+    }
 
     LaunchedEffect(sellerId) { viewModel.load(sellerId) }
 
@@ -157,18 +173,73 @@ fun SellerStoreScreen(navController: NavController, sellerId: Long) {
             ) {
                 // Шапка магазина
                 seller?.let { s ->
-                    item { SellerStoreHeader(s) }
+                    item { SellerStoreHeader(s, productCount = products.size) }
+                }
+
+                // Поиск
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Поиск в магазине...", fontFamily = SoraFontFamily, fontSize = 14.sp) },
+                        leadingIcon = { Icon(Icons.TwoTone.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(Icons.TwoTone.Clear, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = colorDarkOrange,
+                            focusedLabelColor = colorDarkOrange
+                        )
+                    )
+                }
+
+                // Фильтр по категории
+                if (categories.size > 2) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .horizontalScroll(rememberScrollState())
+                                .padding(horizontal = 24.dp)
+                                .padding(bottom = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            categories.forEach { cat ->
+                                FilterChip(
+                                    selected = selectedCategory == cat,
+                                    onClick = { selectedCategory = cat },
+                                    label = { Text(cat, fontFamily = SoraFontFamily, fontSize = 13.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = colorDarkOrange,
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // Заголовок товаров
                 item {
                     Text(
-                        text = "Товары (${products.size})",
+                        text = if (searchQuery.isBlank() && selectedCategory == "Все")
+                            "Товары (${products.size})"
+                        else
+                            "Найдено: ${filteredProducts.size}",
                         fontFamily = SoraFontFamily,
                         fontWeight = FontWeight.W600,
                         fontSize = 18.sp,
                         color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                     )
                 }
 
@@ -182,22 +253,19 @@ fun SellerStoreScreen(navController: NavController, sellerId: Long) {
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(
-                                    Icons.TwoTone.ShoppingCart, null,
-                                    modifier = Modifier.size(48.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    "Товаров пока нет",
-                                    fontFamily = SoraFontFamily,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Icon(Icons.TwoTone.ShoppingCart, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Товаров пока нет", fontFamily = SoraFontFamily, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
+                } else if (filteredProducts.isEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+                            Text("Ничего не найдено", fontFamily = SoraFontFamily, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 } else {
-                    items(products) { coffee ->
+                    items(filteredProducts) { coffee ->
                         SellerProductCard(
                             coffee = coffee,
                             imageBytes = imageCache[coffee.imageName],
@@ -219,7 +287,7 @@ fun SellerStoreScreen(navController: NavController, sellerId: Long) {
 }
 
 @Composable
-private fun SellerStoreHeader(seller: SellerResponse) {
+private fun SellerStoreHeader(seller: SellerResponse, productCount: Int = 0) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // Баннер-фон
         Box(
@@ -270,22 +338,24 @@ private fun SellerStoreHeader(seller: SellerResponse) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        seller.category,
-                        fontFamily = SoraFontFamily,
-                        fontSize = 13.sp,
-                        color = colorDarkOrange,
-                        fontWeight = FontWeight.W600
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = colorDarkOrange.copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            seller.category,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            fontFamily = SoraFontFamily,
+                            fontSize = 12.sp,
+                            color = colorDarkOrange,
+                            fontWeight = FontWeight.W600
+                        )
+                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(
-                            Icons.TwoTone.Star, null,
-                            tint = colorDarkOrange,
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Icon(Icons.TwoTone.Star, null, tint = colorDarkOrange, modifier = Modifier.size(16.dp))
                         Text(
                             "%.1f".format(seller.rating),
                             fontFamily = SoraFontFamily,
@@ -295,6 +365,7 @@ private fun SellerStoreHeader(seller: SellerResponse) {
                         )
                     }
                 }
+
                 Text(
                     seller.description,
                     fontFamily = SoraFontFamily,
@@ -302,24 +373,29 @@ private fun SellerStoreHeader(seller: SellerResponse) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 20.sp
                 )
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+
+                // Статистика
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround
                 ) {
-                    Icon(
-                        Icons.TwoTone.Person, null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        seller.ownerName,
-                        fontFamily = SoraFontFamily,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    StoreStatItem(icon = Icons.TwoTone.ShoppingCart, value = productCount.toString(), label = "Товаров")
+                    StoreStatItem(icon = Icons.TwoTone.Star, value = "%.1f".format(seller.rating), label = "Рейтинг")
+                    StoreStatItem(icon = Icons.TwoTone.Person, value = seller.ownerName, label = "Продавец")
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StoreStatItem(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Icon(icon, null, tint = colorDarkOrange, modifier = Modifier.size(20.dp))
+        Text(value, fontFamily = SoraFontFamily, fontWeight = FontWeight.W600, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, fontFamily = SoraFontFamily, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

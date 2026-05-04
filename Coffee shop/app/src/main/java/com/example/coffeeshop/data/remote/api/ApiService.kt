@@ -115,6 +115,9 @@ interface ApiService {
     @GET("sellers/me")
     suspend fun getMyShop(): Response<SellerResponse>
 
+    @POST("sellers/become-seller")
+    suspend fun becomeSeller(@Body request: SellerRequest): Response<SellerResponse>
+
     @POST("sellers")
     suspend fun createShop(@Body request: SellerRequest): Response<SellerResponse>
 
