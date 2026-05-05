@@ -130,4 +130,10 @@ class CoffeeDetailViewModel @Inject constructor(
     fun getPriceForSize(size: String): Float {
         return _coffee.value?.sizes?.find { it.size == size }?.price ?: 0f
     }
+
+    fun logView(productId: Int) {
+        viewModelScope.launch {
+            productRepository.logProductView(productId)
+        }
+    }
 }

@@ -36,4 +36,22 @@ class ProductRepository @Inject constructor(
             null
         }
     }
+
+    suspend fun getPopularProducts(limit: Int = 8): List<ProductResponse> {
+        return try {
+            val response = apiService.getPopularProducts(limit)
+            if (response.isSuccessful) response.body() ?: emptyList() else emptyList()
+        } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun getRecommendedProducts(limit: Int = 8): List<ProductResponse> {
+        return try {
+            val response = apiService.getRecommendedProducts(limit)
+            if (response.isSuccessful) response.body() ?: emptyList() else emptyList()
+        } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun logProductView(productId: Int) {
+        try { apiService.logProductView(productId) } catch (_: Exception) {}
+    }
 }

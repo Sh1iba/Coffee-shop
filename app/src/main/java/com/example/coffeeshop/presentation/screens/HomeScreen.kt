@@ -123,7 +123,8 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
         viewModel.searchCoffee(searchState.searchText)
     }
 
-    val popularProducts = remember(homeState.allProducts) { homeState.allProducts.take(8) }
+    val popularProducts by viewModel.popularProducts.collectAsState()
+    val recommendedProducts by viewModel.recommendedProducts.collectAsState()
     val showSections = !homeState.isSearching && homeState.selectedTypeName == "Все товары"
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -366,6 +367,35 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(popularProducts) { product ->
+                                PopularProductCard(
+                                    product = product,
+                                    viewModel = viewModel,
+                                    navController = navController,
+                                    cartViewModel = cartViewModel
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Рекомендации ──────────────────────────────────────────────────
+            if (showSections && recommendedProducts.isNotEmpty()) {
+                item {
+                    Column(modifier = Modifier.padding(top = 20.dp, bottom = 8.dp)) {
+                        Text(
+                            text = "Рекомендуем",
+                            fontFamily = SoraFontFamily,
+                            fontWeight = FontWeight.W600,
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 12.dp)
+                        )
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(recommendedProducts) { product ->
                                 PopularProductCard(
                                     product = product,
                                     viewModel = viewModel,

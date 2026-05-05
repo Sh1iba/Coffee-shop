@@ -66,6 +66,7 @@ fun CoffeeDetailScreen(
         viewModel.setCoffee(coffee, favoriteSize)
         viewModel.loadCoffeeImage()
         viewModel.checkIfInCartWithCurrentSize()
+        viewModel.logView(coffee.id)
     }
 
     LaunchedEffect(selectedSize) {

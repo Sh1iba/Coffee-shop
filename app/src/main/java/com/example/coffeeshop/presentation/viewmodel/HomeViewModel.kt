@@ -37,6 +37,12 @@ class HomeViewModel @Inject constructor(
     private val _sellers = MutableStateFlow<List<SellerResponse>>(emptyList())
     val sellers: StateFlow<List<SellerResponse>> = _sellers.asStateFlow()
 
+    private val _popularProducts = MutableStateFlow<List<ProductResponse>>(emptyList())
+    val popularProducts: StateFlow<List<ProductResponse>> = _popularProducts.asStateFlow()
+
+    private val _recommendedProducts = MutableStateFlow<List<ProductResponse>>(emptyList())
+    val recommendedProducts: StateFlow<List<ProductResponse>> = _recommendedProducts.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -69,6 +75,8 @@ class HomeViewModel @Inject constructor(
                         )
                     }
                     loadProductImages(products)
+                    launch { _popularProducts.value = productRepository.getPopularProducts() }
+                    launch { _recommendedProducts.value = productRepository.getRecommendedProducts() }
                 }
             } catch (e: Exception) {
                 _error.value = "Ошибка: ${e.message}"

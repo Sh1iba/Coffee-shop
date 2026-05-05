@@ -104,6 +104,17 @@ interface ApiService {
     @PUT("products/orders/{orderId}/cancel")
     suspend fun cancelOrder(@Path("orderId") orderId: Long): Response<ApiResponse>
 
+    // ── РЕКОМЕНДАЦИИ / ПОПУЛЯРНОЕ ─────────────────────────────────────────
+
+    @GET("products/popular")
+    suspend fun getPopularProducts(@Query("limit") limit: Int = 8): Response<List<ProductResponse>>
+
+    @GET("products/recommended")
+    suspend fun getRecommendedProducts(@Query("limit") limit: Int = 8): Response<List<ProductResponse>>
+
+    @POST("products/{productId}/view")
+    suspend fun logProductView(@Path("productId") productId: Int): Response<Unit>
+
     // ── SELLERS ────────────────────────────────────────────────────────────
 
     @GET("sellers")
