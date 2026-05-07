@@ -1,6 +1,5 @@
 package com.example.coffeeshop.presentation.viewmodel
 
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.coffeeshop.data.remote.response.ProductCategoryResponse
@@ -40,9 +39,6 @@ class SellerViewModel @Inject constructor(
     private val _isUploading = MutableStateFlow(false)
     val isUploading: StateFlow<Boolean> = _isUploading
 
-    private val _imageCache = mutableStateMapOf<String, ByteArray?>()
-    val imageCache: Map<String, ByteArray?> get() = _imageCache
-
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
@@ -60,13 +56,7 @@ class SellerViewModel @Inject constructor(
 
     fun loadMyProducts() {
         viewModelScope.launch {
-            val products = sellerRepository.getMyProducts()
-            _myProducts.value = products
-            products.forEach { p ->
-                if (p.imageName.isNotEmpty() && !_imageCache.containsKey(p.imageName)) {
-                    _imageCache[p.imageName] = sellerRepository.getProductImage(p.imageName)
-                }
-            }
+            _myProducts.value = sellerRepository.getMyProducts()
         }
     }
 

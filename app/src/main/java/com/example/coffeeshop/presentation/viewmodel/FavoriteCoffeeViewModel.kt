@@ -29,7 +29,6 @@ class FavoriteCoffeeViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    private val _imageMap = mutableStateMapOf<Int, ByteArray?>()
 
     private val _scrollState = MutableStateFlow(0)
     val scrollState: StateFlow<Int> = _scrollState.asStateFlow()
@@ -49,11 +48,6 @@ class FavoriteCoffeeViewModel @Inject constructor(
                 }
                 _favoriteCoffees.value = favoritePairs
 
-                favoritePairs.forEach { (product, _) ->
-                    if (product.imageName.isNotEmpty() && !_imageMap.containsKey(product.id)) {
-                        _imageMap[product.id] = productRepository.getProductImage(product.imageName)
-                    }
-                }
             } catch (e: Exception) {
                 _error.value = "Ошибка загрузки: ${e.message}"
             } finally {
@@ -70,15 +64,12 @@ class FavoriteCoffeeViewModel @Inject constructor(
                     _favoriteCoffees.value = _favoriteCoffees.value.filter { (coffee, savedSize) ->
                         coffee.id != productId || savedSize != size
                     }
-                    _imageMap.remove(productId)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
-
-    fun getImageForProduct(productId: Int): ByteArray? = _imageMap[productId]
 
     fun clearError() { _error.value = null }
 

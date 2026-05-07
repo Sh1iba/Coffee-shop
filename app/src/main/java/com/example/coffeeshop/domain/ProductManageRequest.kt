@@ -6,7 +6,7 @@ data class ProductManageRequest(
     val name: String,
     val description: String,
     val categoryId: Int,
-    val imageName: String,
+    val imageUrl: String,
     val variants: List<VariantRequest>
 )
 

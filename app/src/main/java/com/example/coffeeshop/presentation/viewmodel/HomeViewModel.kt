@@ -1,6 +1,5 @@
 package com.example.coffeeshop.presentation.viewmodel
 
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.coffeeshop.data.remote.response.ProductResponse
@@ -24,9 +23,6 @@ class HomeViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-
-    private val _imageCache = mutableStateMapOf<String, ByteArray?>()
-    val imageCache: Map<String, ByteArray?> get() = _imageCache
 
     private val _lastSearchQuery = MutableStateFlow("")
     private val _lastSelectedType = MutableStateFlow<String?>(null)
@@ -74,7 +70,6 @@ class HomeViewModel @Inject constructor(
                             productTypeMapping = typeMapping
                         )
                     }
-                    loadProductImages(products)
                     launch { _popularProducts.value = productRepository.getPopularProducts() }
                     launch { _recommendedProducts.value = productRepository.getRecommendedProducts() }
                 }
@@ -119,16 +114,6 @@ class HomeViewModel @Inject constructor(
 
     fun getPriceBySize(product: ProductResponse, size: String): Float {
         return product.sizes.find { it.size == size }?.price ?: getDefaultPrice(product)
-    }
-
-    private fun loadProductImages(products: List<ProductResponse>) {
-        viewModelScope.launch {
-            products.forEach { p ->
-                if (!_imageCache.containsKey(p.imageName)) {
-                    _imageCache[p.imageName] = productRepository.getProductImage(p.imageName)
-                }
-            }
-        }
     }
 
     fun onCoffeeTypeSelected(typeName: String) {

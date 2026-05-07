@@ -58,14 +58,14 @@ fun AppNavGraph(
 
         // ── Product detail ──────────────────────────────────────────────────
         composable(
-            route = "${NavigationRoutes.DETAIL}/{coffeeId}/{coffeeName}/{coffeeType}/{coffeeDescription}/{imageName}" +
-                    "?sizes={sizes}&favoriteSize={favoriteSize}&sellerId={sellerId}",
+            route = "${NavigationRoutes.DETAIL}/{coffeeId}/{coffeeName}/{coffeeType}/{coffeeDescription}" +
+                    "?imageUrl={imageUrl}&sizes={sizes}&favoriteSize={favoriteSize}&sellerId={sellerId}",
             arguments = listOf(
                 navArgument("coffeeId")          { type = NavType.IntType },
                 navArgument("coffeeName")        { type = NavType.StringType },
                 navArgument("coffeeType")        { type = NavType.StringType },
                 navArgument("coffeeDescription") { type = NavType.StringType },
-                navArgument("imageName")         { type = NavType.StringType },
+                navArgument("imageUrl")          { type = NavType.StringType; defaultValue = "" },
                 navArgument("sizes")             { type = NavType.StringType; defaultValue = "" },
                 navArgument("favoriteSize")      { type = NavType.StringType; defaultValue = "" },
                 navArgument("sellerId")          { type = NavType.LongType;   defaultValue = -1L }
@@ -83,6 +83,9 @@ fun AppNavGraph(
                 }
             } catch (_: Exception) { emptyList() }
 
+            val imageUrl = try {
+                URLDecoder.decode(entry.arguments?.getString("imageUrl") ?: "", "UTF-8")
+            } catch (_: Exception) { "" }
             val sellerId = entry.arguments?.getLong("sellerId") ?: -1L
             CoffeeDetailScreen(
                 navController = navController,
@@ -92,7 +95,7 @@ fun AppNavGraph(
                     name        = entry.arguments?.getString("coffeeName") ?: "",
                     description = entry.arguments?.getString("coffeeDescription") ?: "",
                     sizes       = sizes,
-                    imageName   = entry.arguments?.getString("imageName") ?: "",
+                    imageUrl    = imageUrl,
                     sellerId    = sellerId.takeIf { it > 0 }
                 ),
                 favoriteSize = entry.arguments?.getString("favoriteSize") ?: ""

@@ -8,7 +8,7 @@ data class ProductResponse(
     val name: String,
     val description: String,
     @SerializedName("variants") val sizes: List<ProductVariantResponse>,
-    val imageName: String,
+    val imageUrl: String = "",
     val sellerId: Long? = null,
     val sellerName: String? = null
 )

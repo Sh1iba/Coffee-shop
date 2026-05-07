@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -30,8 +29,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
+import coil.compose.AsyncImage
+import java.net.URLEncoder
 import com.example.coffeeshop.R
 import com.example.coffeeshop.data.remote.response.CartItemResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
@@ -41,7 +40,6 @@ import com.example.coffeeshop.presentation.theme.colorDarkOrange
 import com.example.coffeeshop.presentation.viewmodel.CartViewModel
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
-import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -295,10 +293,6 @@ fun CartItemCard(
     onQuantityChange: (Int) -> Unit,
     onRemove: () -> Unit
 ) {
-    val imageBytes by remember(item.id) {
-        derivedStateOf { viewModel.getImageForProduct(item.id) }
-    }
-
     val coroutineScope = rememberCoroutineScope()
 
     Card(
@@ -311,18 +305,19 @@ fun CartItemCard(
                     fullCoffeeData?.let { coffee ->
                         val sizesEncoded = URLEncoder.encode(
                             coffee.sizes.joinToString(",") { size ->
-                                "${size.size}:${size.price}"
+                                "${size.size}:${size.price}:${size.volume ?: ""}"
                             },
                             "UTF-8"
                         )
+                        val imageUrlEncoded = URLEncoder.encode(coffee.imageUrl, "UTF-8")
                         navController.navigate(
                             "${NavigationRoutes.DETAIL}/" +
                                     "${coffee.id}/" +
                                     "${coffee.name}/" +
                                     "${coffee.type.type}/" +
-                                    "${coffee.description}/" +
-                                    "${coffee.imageName}" +
-                                    "?sizes=$sizesEncoded" +
+                                    "${coffee.description}" +
+                                    "?imageUrl=$imageUrlEncoded" +
+                                    "&sizes=$sizesEncoded" +
                                     "&favoriteSize=${item.selectedSize}" +
                                     "&sellerId=${coffee.sellerId ?: -1L}"
                         )
@@ -339,33 +334,14 @@ fun CartItemCard(
             Box(
                 modifier = Modifier.size(60.dp)
             ) {
-                if (imageBytes != null) {
-                    Image(
-                        painter = rememberAsyncImagePainter(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(imageBytes)
-                                .build()
-                        ),
-                        contentDescription = item.name,
-                        modifier = Modifier
-                            .size(60.dp)
-                            .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(60.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFEDE0D4)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = colorDarkOrange
-                        )
-                    }
-                }
+                AsyncImage(
+                    model = item.imageUrl,
+                    contentDescription = item.name,
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
+                )
 
                 Checkbox(
                     checked = isSelected,

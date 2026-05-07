@@ -37,7 +37,6 @@ class CartViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    private val _imageMap = mutableStateMapOf<Int, ByteArray?>()
 
     val totalPrice: StateFlow<Double> = _cartSummary.map { summary ->
         summary?.totalPrice?.toDouble() ?: 0.0
@@ -58,11 +57,6 @@ class CartViewModel @Inject constructor(
             try {
                 val summary = cartRepository.getCart()
                 _cartSummary.value = summary
-                summary.items.forEach { item ->
-                    if (item.imageName.isNotEmpty() && !_imageMap.containsKey(item.id)) {
-                        _imageMap[item.id] = productRepository.getProductImage(item.imageName)
-                    }
-                }
             } catch (e: Exception) {
                 _error.value = "Ошибка загрузки корзины: ${e.message}"
             } finally {
@@ -119,6 +113,5 @@ class CartViewModel @Inject constructor(
         }
     }
 
-    fun getImageForProduct(productId: Int): ByteArray? = _imageMap[productId]
     fun clearError() { _error.value = null }
 }

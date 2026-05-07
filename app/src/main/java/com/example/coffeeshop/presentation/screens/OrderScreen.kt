@@ -82,6 +82,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.coffeeshop.data.remote.response.CartItemResponse
@@ -606,15 +607,7 @@ fun OrderContent(
                     coffeeName = orderItem.cartItem.name,
                     coffeeType = orderItem.coffeeData?.type?.type ?: "Кофе",
                     coffeeDescription = orderItem.cartItem.selectedSize,
-                    coffeeImage = if (orderItem.imageBytes != null) {
-                        rememberAsyncImagePainter(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(orderItem.imageBytes)
-                                .build()
-                        )
-                    } else {
-                        painterResource(id = R.drawable.banner)
-                    },
+                    imageUrl = orderItem.cartItem.imageUrl,
                     quantity = orderItem.cartItem.quantity
                 )
             }
@@ -932,7 +925,7 @@ fun OrderCoffeeCard(
     coffeeName: String,
     coffeeType: String,
     coffeeDescription: String,
-    coffeeImage: Painter,
+    imageUrl: String,
     quantity: Int
 ) {
     Card(
@@ -948,8 +941,8 @@ fun OrderCoffeeCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Image(
-                painter = coffeeImage,
+            AsyncImage(
+                model = imageUrl,
                 contentDescription = coffeeName,
                 modifier = Modifier
                     .size(54.dp)
@@ -1010,7 +1003,7 @@ fun OrderScreenPreview(){
             price = 3.00f,
             quantity = 2,
             totalPrice = 6.00f,
-            imageName = "cappuccino.jpg"
+            imageUrl = ""
         ),
         CartItemResponse(
             id = 2,
@@ -1019,7 +1012,7 @@ fun OrderScreenPreview(){
             price = 4.50f,
             quantity = 1,
             totalPrice = 4.50f,
-            imageName = "latte.jpg"
+            imageUrl = ""
         )
     )
 

@@ -16,8 +16,7 @@ import javax.inject.Inject
 
 data class OrderItem(
     val cartItem: CartItemResponse,
-    val coffeeData: ProductResponse?,
-    val imageBytes: ByteArray?
+    val coffeeData: ProductResponse?
 )
 
 data class ParsedAddress(
@@ -115,10 +114,7 @@ class OrderViewModel @Inject constructor(
                 val orderItemsList = cartItems.map { cartItem ->
                     OrderItem(
                         cartItem = cartItem,
-                        coffeeData = productRepository.getProductById(cartItem.id),
-                        imageBytes = if (cartItem.imageName.isNotEmpty()) {
-                            productRepository.getProductImage(cartItem.imageName)
-                        } else null
+                        coffeeData = productRepository.getProductById(cartItem.id)
                     )
                 }
                 _orderItems.value = orderItemsList

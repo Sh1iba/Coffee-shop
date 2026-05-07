@@ -32,9 +32,6 @@ class CoffeeDetailViewModel @Inject constructor(
     private val _favorites = MutableStateFlow<List<FavoriteProductResponse>>(emptyList())
     val favorites: StateFlow<List<FavoriteProductResponse>> = _favorites.asStateFlow()
 
-    private val _imageBytes = MutableStateFlow<ByteArray?>(null)
-    val imageBytes: StateFlow<ByteArray?> = _imageBytes.asStateFlow()
-
     private val _selectedSize = MutableStateFlow<String?>(null)
     val selectedSize: StateFlow<String?> = _selectedSize.asStateFlow()
 
@@ -104,13 +101,6 @@ class CoffeeDetailViewModel @Inject constructor(
     fun selectSize(size: String) {
         _selectedSize.value = size
         checkIfInCartWithCurrentSize()
-    }
-
-    fun loadCoffeeImage() {
-        viewModelScope.launch {
-            val imageName = _coffee.value?.imageName ?: return@launch
-            _imageBytes.value = productRepository.getProductImage(imageName)
-        }
     }
 
     fun addToCart() {

@@ -31,6 +31,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.coffeeshop.R
@@ -63,9 +64,6 @@ class SellerStoreViewModel @Inject constructor(
     private val _products = MutableStateFlow<List<ProductResponse>>(emptyList())
     val products: StateFlow<List<ProductResponse>> = _products
 
-    private val _imageCache = MutableStateFlow<Map<String, ByteArray?>>(emptyMap())
-    val imageCache: StateFlow<Map<String, ByteArray?>> = _imageCache
-
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -76,19 +74,8 @@ class SellerStoreViewModel @Inject constructor(
             try {
                 val all = productRepository.getAllProducts()
                 _products.value = all.filter { it.sellerId == sellerId }
-                loadImages(_products.value)
             } catch (_: Exception) {}
             _isLoading.value = false
-        }
-    }
-
-    private fun loadImages(list: List<ProductResponse>) {
-        viewModelScope.launch {
-            val cache = mutableMapOf<String, ByteArray?>()
-            list.forEach { coffee ->
-                cache[coffee.imageName] = productRepository.getProductImage(coffee.imageName)
-            }
-            _imageCache.value = cache
         }
     }
 }
@@ -100,10 +87,9 @@ class SellerStoreViewModel @Inject constructor(
 fun SellerStoreScreen(navController: NavController, sellerId: Long) {
     val viewModel: SellerStoreViewModel = hiltViewModel()
 
-    val seller     by viewModel.seller.collectAsState()
-    val products   by viewModel.products.collectAsState()
-    val imageCache by viewModel.imageCache.collectAsState()
-    val isLoading  by viewModel.isLoading.collectAsState()
+    val seller    by viewModel.seller.collectAsState()
+    val products  by viewModel.products.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     var searchQuery      by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Все") }
@@ -268,14 +254,14 @@ fun SellerStoreScreen(navController: NavController, sellerId: Long) {
                     items(filteredProducts) { coffee ->
                         SellerProductCard(
                             coffee = coffee,
-                            imageBytes = imageCache[coffee.imageName],
                             onClick = {
                                 val sizesEncoded = URLEncoder.encode(
                                     coffee.sizes.joinToString(",") { "${it.size}:${it.price}:${it.volume ?: ""}" },
                                     "UTF-8"
                                 )
+                                val imageUrlEncoded = URLEncoder.encode(coffee.imageUrl, "UTF-8")
                                 navController.navigate(
-                                    "${NavigationRoutes.DETAIL}/${coffee.id}/${coffee.name}/${coffee.type.type}/${coffee.description}/${coffee.imageName}?sizes=$sizesEncoded&favoriteSize=&sellerId=${coffee.sellerId ?: -1L}"
+                                    "${NavigationRoutes.DETAIL}/${coffee.id}/${coffee.name}/${coffee.type.type}/${coffee.description}?imageUrl=$imageUrlEncoded&sizes=$sizesEncoded&favoriteSize=&sellerId=${coffee.sellerId ?: -1L}"
                                 )
                             }
                         )
@@ -402,7 +388,6 @@ private fun StoreStatItem(icon: androidx.compose.ui.graphics.vector.ImageVector,
 @Composable
 private fun SellerProductCard(
     coffee: ProductResponse,
-    imageBytes: ByteArray?,
     onClick: () -> Unit
 ) {
     Card(
@@ -425,16 +410,12 @@ private fun SellerProductCard(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFF3A3A3A))
             ) {
-                if (imageBytes != null) {
-                    Image(
-                        painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(LocalContext.current).data(imageBytes).build()
-                        ),
-                        contentDescription = coffee.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+                AsyncImage(
+                    model = coffee.imageUrl,
+                    contentDescription = coffee.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
             }
 
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {

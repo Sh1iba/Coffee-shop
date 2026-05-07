@@ -23,7 +23,6 @@ import com.example.coffeeshop.domain.SellerRequest
 import com.example.coffeeshop.domain.UpdateCartQuantityRequest
 import com.example.coffeeshop.domain.UpdateProfileRequest
 import okhttp3.MultipartBody
-import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -47,11 +46,6 @@ interface ApiService {
         @Query("page") page: Int = 0,
         @Query("size") size: Int = 100
     ): Response<PagedProductResponse>
-
-    @GET("products/image/{imageName}")
-    suspend fun getCoffeeImage(
-        @Path("imageName") imageName: String
-    ): Response<ResponseBody>
 
     // ── ИЗБРАННОЕ ──────────────────────────────────────────────────────────
 

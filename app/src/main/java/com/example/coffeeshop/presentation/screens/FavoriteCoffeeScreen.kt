@@ -29,8 +29,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import java.net.URLEncoder
 import com.example.coffeeshop.R
 import com.example.coffeeshop.data.remote.response.ProductResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
@@ -186,10 +188,6 @@ fun CoffeeFavoriteCard(
     navController: NavController,
     onNavigateToDetail: () -> Unit
 ) {
-    val imageBytes by remember(coffee.id) {
-        derivedStateOf { viewModel.getImageForProduct(coffee.id) }
-    }
-
     val savedPrice = remember(coffee, savedSize) {
         viewModel.getPriceForSavedSize(coffee, savedSize)
     }
@@ -200,14 +198,15 @@ fun CoffeeFavoriteCard(
             .clip(RoundedCornerShape(16.dp))
             .clickable {
                 val sizesEncoded = viewModel.encodeSizesForNavigation(coffee)
+                val imageUrlEncoded = URLEncoder.encode(coffee.imageUrl, "UTF-8")
                 navController.navigate(
                     "${NavigationRoutes.DETAIL}/" +
                             "${coffee.id}/" +
                             "${coffee.name}/" +
                             "${coffee.type.type}/" +
-                            "${coffee.description}/" +
-                            "${coffee.imageName}" +
-                            "?sizes=$sizesEncoded" +
+                            "${coffee.description}" +
+                            "?imageUrl=$imageUrlEncoded" +
+                            "&sizes=$sizesEncoded" +
                             "&favoriteSize=$savedSize" +
                             "&sellerId=${coffee.sellerId ?: -1L}"
                 )
@@ -220,45 +219,14 @@ fun CoffeeFavoriteCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (imageBytes != null) {
-                Image(
-                    painter = rememberAsyncImagePainter(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(imageBytes)
-                            .build()
-                    ),
-                    contentDescription = coffee.name,
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFEDE0D4)),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFEDE0D4)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = coffee.name,
-                            color = Color.Black,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = colorDarkOrange
-                        )
-                    }
-                }
-            }
+            AsyncImage(
+                model = coffee.imageUrl,
+                contentDescription = coffee.name,
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 

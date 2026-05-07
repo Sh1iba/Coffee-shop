@@ -2,6 +2,7 @@ package com.example.coffeeshop.presentation.screens
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -420,7 +421,6 @@ private fun ProductsTab(products: List<ProductResponse>, viewModel: SellerViewMo
                 Text("Ничего не найдено", fontFamily = SoraFontFamily, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
-            val imageCache = viewModel.imageCache
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 24.dp),
@@ -429,7 +429,6 @@ private fun ProductsTab(products: List<ProductResponse>, viewModel: SellerViewMo
                 items(filteredProducts) { product ->
                     ProductItemCard(
                         product = product,
-                        imageBytes = imageCache[product.imageName],
                         onEdit = { editingProduct = product },
                         onDelete = { viewModel.deleteProduct(product.id) }
                     )
@@ -466,7 +465,6 @@ private fun ProductsTab(products: List<ProductResponse>, viewModel: SellerViewMo
 @Composable
 private fun ProductItemCard(
     product: ProductResponse,
-    imageBytes: ByteArray?,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -489,18 +487,12 @@ private fun ProductItemCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                if (imageBytes != null) {
-                    Image(
-                        painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(LocalContext.current).data(imageBytes).build()
-                        ),
-                        contentDescription = product.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(Icons.TwoTone.Place, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp))
-                }
+                AsyncImage(
+                    model = product.imageUrl,
+                    contentDescription = product.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
             }
 
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -754,7 +746,7 @@ private fun ProductFormDialog(
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var description by remember { mutableStateOf(initial?.description ?: "") }
     var selectedCategoryId by remember { mutableStateOf(initial?.type?.id ?: 1) }
-    var imageName by remember { mutableStateOf(initial?.imageName ?: "") }
+    var imageUrl by remember { mutableStateOf(initial?.imageUrl ?: "") }
     var previewUri by remember { mutableStateOf<Uri?>(null) }
     var variants by remember {
         mutableStateOf(
@@ -779,7 +771,7 @@ private fun ProductFormDialog(
                     val bytes = context.contentResolver.openInputStream(it)?.readBytes() ?: return@launch
                     val body = bytes.toRequestBody(mimeType.toMediaType())
                     val part = MultipartBody.Part.createFormData("file", "upload.$ext", body)
-                    onUploadImage(part) { uploaded -> if (uploaded != null) imageName = uploaded }
+                    onUploadImage(part) { uploaded -> if (uploaded != null) imageUrl = uploaded }
                 } catch (_: Exception) {}
             }
         }
@@ -886,8 +878,8 @@ private fun ProductFormDialog(
                             }
                         }
 
-                        if (imageName.isNotEmpty()) {
-                            Text("✓ $imageName", fontFamily = SoraFontFamily, fontSize = 12.sp, color = colorDarkOrange)
+                        if (imageUrl.isNotEmpty()) {
+                            Text("✓ Фото загружено", fontFamily = SoraFontFamily, fontSize = 12.sp, color = colorDarkOrange)
                         }
                     }
 
@@ -956,13 +948,13 @@ private fun ProductFormDialog(
                     Button(
                         onClick = {
                             val validVariants = variants.filter { it.size.isNotBlank() && it.price.isNotBlank() }
-                            if (name.isNotBlank() && description.isNotBlank() && imageName.isNotBlank() && validVariants.isNotEmpty()) {
+                            if (name.isNotBlank() && description.isNotBlank() && imageUrl.isNotBlank() && validVariants.isNotEmpty()) {
                                 onConfirm(
                                     ProductManageRequest(
                                         name = name.trim(),
                                         description = description.trim(),
                                         categoryId = selectedCategoryId,
-                                        imageName = imageName.trim(),
+                                        imageUrl = imageUrl.trim(),
                                         variants = validVariants.map {
                                             VariantRequest(it.size.trim(), it.price.toBigDecimalOrNull() ?: BigDecimal.ZERO)
                                         }

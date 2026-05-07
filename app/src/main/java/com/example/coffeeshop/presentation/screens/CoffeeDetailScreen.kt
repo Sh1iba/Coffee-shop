@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.coffeeshop.R
@@ -55,7 +56,6 @@ fun CoffeeDetailScreen(
 
     val currentCoffee by viewModel.coffee.collectAsState()
     val isFavoriteWithCurrentSize by viewModel.isFavoriteWithCurrentSize.collectAsState()
-    val imageBytes by viewModel.imageBytes.collectAsState()
     val selectedSize by viewModel.selectedSize.collectAsState()
     val currentPrice by viewModel.currentPrice.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -64,7 +64,6 @@ fun CoffeeDetailScreen(
 
     LaunchedEffect(coffee) {
         viewModel.setCoffee(coffee, favoriteSize)
-        viewModel.loadCoffeeImage()
         viewModel.checkIfInCartWithCurrentSize()
         viewModel.logView(coffee.id)
     }
@@ -174,37 +173,12 @@ fun CoffeeDetailScreen(
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xFF727070))
                 ) {
-                    if (imageBytes != null) {
-                        Image(
-                            painter = rememberAsyncImagePainter(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(imageBytes)
-                                    .build()
-                            ),
-                            contentDescription = currentCoffee?.name,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = currentCoffee?.name ?: coffee.name,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 20.sp
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                CircularProgressIndicator(color = Color.White)
-                            }
-                        }
-                    }
+                    AsyncImage(
+                        model = currentCoffee?.imageUrl,
+                        contentDescription = currentCoffee?.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
                 }
             }
 
@@ -538,7 +512,7 @@ fun CoffeeDetailScreenPreview() {
                 ProductVariantResponse("M", 3.00f),
                 ProductVariantResponse("L", 3.50f)
             ),
-            imageName = "cappuccino.jpg"
+            imageUrl = ""
         )
 
         CoffeeDetailScreen(

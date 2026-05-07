@@ -80,8 +80,10 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import java.net.URLEncoder
 import com.example.coffeeshop.R
 import com.example.coffeeshop.data.remote.response.NominatimAddress
 import com.example.coffeeshop.data.remote.response.ProductResponse
@@ -504,14 +506,6 @@ fun PopularProductCard(
     navController: NavController,
     cartViewModel: CartViewModel
 ) {
-    val imageBytes by viewModel.imageCache[product.imageName]
-        ?.let { bytes -> remember(bytes) { mutableStateOf(bytes) } }
-        ?: remember { mutableStateOf<ByteArray?>(null) }
-
-    val imagePainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(LocalContext.current).data(imageBytes).build()
-    )
-
     val defaultPrice = remember(product) { viewModel.getDefaultPrice(product) }
 
     val isInCart by remember(cartViewModel.cartItems, product.id) {
@@ -523,8 +517,9 @@ fun PopularProductCard(
             .width(150.dp)
             .clickable {
                 val sizesEncoded = viewModel.encodeSizesForNavigation(product)
+                val imageUrlEncoded = URLEncoder.encode(product.imageUrl, "UTF-8")
                 navController.navigate(
-                    "${NavigationRoutes.DETAIL}/${product.id}/${product.name}/${product.type.type}/${product.description}/${product.imageName}?sizes=$sizesEncoded&favoriteSize=&sellerId=${product.sellerId ?: -1L}"
+                    "${NavigationRoutes.DETAIL}/${product.id}/${product.name}/${product.type.type}/${product.description}?imageUrl=$imageUrlEncoded&sizes=$sizesEncoded&favoriteSize=&sellerId=${product.sellerId ?: -1L}"
                 )
             },
         shape = RoundedCornerShape(16.dp),
@@ -538,8 +533,8 @@ fun PopularProductCard(
                     .height(90.dp)
                     .clip(RoundedCornerShape(12.dp))
             ) {
-                Image(
-                    painter = imagePainter,
+                AsyncImage(
+                    model = product.imageUrl,
                     contentDescription = product.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -1014,16 +1009,6 @@ fun ProductCard(
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val itemHeight = (screenHeight * 0.30f).coerceIn(200.dp, 260.dp)
     val imageHeight = (itemHeight * 0.52f).coerceIn(100.dp, 135.dp)
-    val imageBytes by viewModel.imageCache[coffee.imageName]
-        ?.let { bytes -> remember(bytes) { mutableStateOf(bytes) } }
-        ?: remember { mutableStateOf<ByteArray?>(null) }
-
-    val imagePainter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(LocalContext.current)
-            .data(imageBytes)
-            .build()
-    )
-
     val defaultPrice = remember(coffee) {
         viewModel.getDefaultPrice(coffee)
     }
@@ -1039,14 +1024,15 @@ fun ProductCard(
             .height(itemHeight)
             .clickable {
                 val sizesEncoded = viewModel.encodeSizesForNavigation(coffee)
+                val imageUrlEncoded = URLEncoder.encode(coffee.imageUrl, "UTF-8")
                 navController.navigate(
                     "${NavigationRoutes.DETAIL}/" +
                             "${coffee.id}/" +
                             "${coffee.name}/" +
                             "${coffee.type.type}/" +
-                            "${coffee.description}/" +
-                            "${coffee.imageName}" +
-                            "?sizes=$sizesEncoded" +
+                            "${coffee.description}" +
+                            "?imageUrl=$imageUrlEncoded" +
+                            "&sizes=$sizesEncoded" +
                             "&favoriteSize=" +
                             "&sellerId=${coffee.sellerId ?: -1L}"
                 )
@@ -1067,8 +1053,8 @@ fun ProductCard(
                     .height(imageHeight)
                     .clip(RoundedCornerShape(12.dp))
             ) {
-                Image(
-                    painter = imagePainter,
+                AsyncImage(
+                    model = coffee.imageUrl,
                     contentDescription = coffee.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop

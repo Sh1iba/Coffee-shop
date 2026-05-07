@@ -28,15 +28,6 @@ class ProductRepository @Inject constructor(
         return response.body() ?: emptyList()
     }
 
-    suspend fun getProductImage(imageName: String): ByteArray? {
-        return try {
-            val response = apiService.getCoffeeImage(imageName)
-            if (response.isSuccessful) response.body()?.bytes() else null
-        } catch (e: Exception) {
-            null
-        }
-    }
-
     suspend fun getPopularProducts(limit: Int = 8): List<ProductResponse> {
         return try {
             val response = apiService.getPopularProducts(limit)

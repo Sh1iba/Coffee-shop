@@ -68,7 +68,7 @@ class SellerRepository @Inject constructor(
 
     suspend fun uploadProductImage(file: MultipartBody.Part): String? = try {
         val r = apiService.uploadProductImage(file)
-        if (r.isSuccessful) r.body()?.get("imageName") else null
+        if (r.isSuccessful) r.body()?.get("imageUrl") else null
     } catch (e: Exception) { null }
 
     suspend fun updateOrderStatus(orderId: Long, status: String): Boolean = try {
@@ -79,8 +79,4 @@ class SellerRepository @Inject constructor(
         apiService.getAllCoffeeTypes().body() ?: emptyList()
     } catch (e: Exception) { emptyList() }
 
-    suspend fun getProductImage(imageName: String): ByteArray? = try {
-        val r = apiService.getCoffeeImage(imageName)
-        if (r.isSuccessful) r.body()?.bytes() else null
-    } catch (e: Exception) { null }
 }
