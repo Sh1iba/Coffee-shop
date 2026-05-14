@@ -19,7 +19,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.*
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.*
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import com.yandex.mapkit.MapKitFactory
+import com.yandex.mapkit.geometry.Point
+import com.yandex.mapkit.map.CameraListener
+import com.yandex.mapkit.map.CameraPosition
+import com.yandex.mapkit.map.CameraUpdateReason
+import com.yandex.mapkit.map.Map as YMap
+import com.yandex.mapkit.mapview.MapView as YMapView
 import androidx.compose.runtime.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -170,7 +184,8 @@ fun SellerDashboardScreen(navController: NavController) {
                         myShop, viewModel,
                         approvedProductCount = myProducts.count { it.status == "APPROVED" },
                         pendingProductCount = myProducts.count { it.status == "PENDING" },
-                        branchCount = myBranches.size
+                        approvedBranchCount = myBranches.count { it.status == "APPROVED" },
+                        pendingBranchCount = myBranches.count { it.status == "PENDING" }
                     )
                     1 -> ProductsTab(myProducts, viewModel)
                     2 -> OrdersTab(myOrders, viewModel)
@@ -195,7 +210,7 @@ fun SellerDashboardScreen(navController: NavController) {
 }
 
 @Composable
-private fun ShopTab(shop: SellerResponse?, viewModel: SellerViewModel, approvedProductCount: Int, pendingProductCount: Int, branchCount: Int) {
+private fun ShopTab(shop: SellerResponse?, viewModel: SellerViewModel, approvedProductCount: Int, pendingProductCount: Int, approvedBranchCount: Int, pendingBranchCount: Int) {
     var showCreateDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     val isUploading by viewModel.isUploading.collectAsState()
@@ -268,7 +283,8 @@ private fun ShopTab(shop: SellerResponse?, viewModel: SellerViewModel, approvedP
                     ReadinessBanner(
                         approvedProductCount = approvedProductCount,
                         pendingProductCount = pendingProductCount,
-                        branchCount = branchCount,
+                        approvedBranchCount = approvedBranchCount,
+                        pendingBranchCount = pendingBranchCount,
                         isPending = shop.status == "PENDING"
                     )
                 }
@@ -341,8 +357,8 @@ private fun ModerationBanner(
 }
 
 @Composable
-private fun ReadinessBanner(approvedProductCount: Int, pendingProductCount: Int, branchCount: Int, isPending: Boolean = false) {
-    val hasBranch = branchCount >= 1
+private fun ReadinessBanner(approvedProductCount: Int, pendingProductCount: Int, approvedBranchCount: Int, pendingBranchCount: Int, isPending: Boolean = false) {
+    val hasBranch = approvedBranchCount >= 1
     val hasProducts = approvedProductCount >= 5
     val isReady = hasBranch && hasProducts && !isPending
 
@@ -405,7 +421,12 @@ private fun ReadinessBanner(approvedProductCount: Int, pendingProductCount: Int,
                 )
                 ReadinessStep(
                     done = hasBranch,
-                    text = if (hasBranch) "Филиал добавлен" else "Добавьте хотя бы 1 филиал"
+                    pending = !hasBranch && pendingBranchCount > 0,
+                    text = when {
+                        hasBranch -> "Филиал одобрен ($approvedBranchCount)"
+                        pendingBranchCount > 0 -> "Филиал на проверке — ожидайте одобрения"
+                        else -> "Добавьте хотя бы 1 филиал"
+                    }
                 )
                 ReadinessStep(
                     done = hasProducts,
@@ -1183,11 +1204,9 @@ private fun BranchesTab(branches: List<BranchResponse>, viewModel: SellerViewMod
     }
 
     if (showCreateDialog) {
-        BranchFormDialog(
-            title = "Добавить филиал",
-            initial = null,
-            onConfirm = { req -> viewModel.createBranch(req); showCreateDialog = false },
-            onDismiss = { showCreateDialog = false }
+        AddBranchScreen(
+            onDismiss = { showCreateDialog = false },
+            onConfirm = { req -> viewModel.createBranch(req); showCreateDialog = false }
         )
     }
 
@@ -1197,6 +1216,25 @@ private fun BranchesTab(branches: List<BranchResponse>, viewModel: SellerViewMod
             initial = branch,
             onConfirm = { req -> viewModel.updateBranch(branch.id, req); editingBranch = null },
             onDismiss = { editingBranch = null }
+        )
+    }
+}
+
+@Composable
+private fun BranchStatusBadge(status: String) {
+    val (color, label) = when (status) {
+        "APPROVED" -> Color(0xFF4CAF50) to "Одобрен"
+        "PENDING" -> Color(0xFFF59E0B) to "На проверке"
+        else -> MaterialTheme.colorScheme.error to "Отклонён"
+    }
+    Surface(shape = RoundedCornerShape(6.dp), color = color.copy(alpha = 0.15f)) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            fontFamily = SoraFontFamily,
+            fontWeight = FontWeight.W600,
+            fontSize = 11.sp,
+            color = color
         )
     }
 }
@@ -1219,13 +1257,24 @@ private fun BranchCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        branch.name,
-                        fontFamily = SoraFontFamily,
-                        fontWeight = FontWeight.W600,
-                        fontSize = 15.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            branch.name,
+                            fontFamily = SoraFontFamily,
+                            fontWeight = FontWeight.W600,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        BranchStatusBadge(branch.status)
+                    }
+                    if (!branch.rejectionReason.isNullOrBlank()) {
+                        Text(
+                            "Причина: ${branch.rejectionReason}",
+                            fontFamily = SoraFontFamily,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     Text(
                         "${branch.city}, ${branch.address}",
                         fontFamily = SoraFontFamily,
@@ -1312,6 +1361,457 @@ private fun BranchCard(
                         fontSize = 12.sp,
                         color = if (branch.isActive) colorDarkOrange else MaterialTheme.colorScheme.error
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun YandexMapPicker(
+    initialLat: Double = 55.751244,
+    initialLon: Double = 37.618423,
+    targetPoint: Pair<Double, Double>? = null,
+    onCameraIdle: (Double, Double) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val mapView = remember { YMapView(context) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val onCameraIdleLatest = rememberUpdatedState(onCameraIdle)
+
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> { MapKitFactory.getInstance().onStart(); mapView.onStart() }
+                Lifecycle.Event.ON_STOP -> { mapView.onStop(); MapKitFactory.getInstance().onStop() }
+                else -> {}
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+
+    val lastTargetRef = remember { arrayOfNulls<Pair<Double, Double>>(1) }
+
+    Box(modifier = modifier) {
+        AndroidView(
+            factory = {
+                mapView.apply {
+                    map.move(CameraPosition(Point(initialLat, initialLon), 12f, 0f, 0f))
+                    map.addCameraListener(object : CameraListener {
+                        override fun onCameraPositionChanged(
+                            p0: YMap, pos: CameraPosition,
+                            reason: CameraUpdateReason, finished: Boolean
+                        ) {
+                            onCameraIdleLatest.value(pos.target.latitude, pos.target.longitude)
+                        }
+                    })
+                }
+            },
+            update = { view ->
+                // Двигаем камеру только если targetPoint реально изменился
+                if (targetPoint != null && targetPoint != lastTargetRef[0]) {
+                    lastTargetRef[0] = targetPoint
+                    val (la, lo) = targetPoint
+                    view.map.move(CameraPosition(Point(la, lo), 15f, 0f, 0f))
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+        Icon(
+            imageVector = Icons.TwoTone.Place,
+            contentDescription = null,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .offset(y = (-18).dp)
+                .size(40.dp),
+            tint = colorDarkOrange
+        )
+    }
+}
+
+@Composable
+private fun AddBranchScreen(
+    onDismiss: () -> Unit,
+    onConfirm: (BranchRequest) -> Unit
+) {
+    var step by remember { mutableIntStateOf(0) }
+
+    var lat by remember { mutableDoubleStateOf(55.751244) }
+    var lon by remember { mutableDoubleStateOf(37.618423) }
+    var city by remember { mutableStateOf("") }
+    var street by remember { mutableStateOf("") }
+    var house by remember { mutableStateOf("") }
+    var building by remember { mutableStateOf("") }
+    var detectedAddress by remember { mutableStateOf("") }
+    var mapSearchQuery by remember { mutableStateOf("") }
+    var targetPoint by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+    var searchLoading by remember { mutableStateOf(false) }
+    var searchError by remember { mutableStateOf("") }
+    var cameraLat by remember { mutableDoubleStateOf(0.0) }
+    var cameraLon by remember { mutableDoubleStateOf(0.0) }
+    val httpClient = remember {
+        okhttp3.OkHttpClient.Builder()
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                chain.proceed(chain.request().newBuilder().header("User-Agent", "CoffeeMarketplace/1.0").build())
+            }.build()
+    }
+    val scope = rememberCoroutineScope()
+
+    val backendBase = "http://10.0.2.2:8080/api/geocode"
+
+    // Прямое геокодирование: поисковая строка → карта
+    LaunchedEffect(mapSearchQuery) {
+        searchError = ""
+        if (mapSearchQuery.length >= 3) {
+            delay(800)
+            searchLoading = true
+            try {
+                val encoded = java.net.URLEncoder.encode(mapSearchQuery, "UTF-8")
+                val url = "$backendBase/search?q=$encoded"
+                val body = withContext(Dispatchers.IO) {
+                    httpClient.newCall(okhttp3.Request.Builder().url(url).build()).execute().body?.string()
+                } ?: run { searchError = "Нет ответа от сервера"; return@LaunchedEffect }
+                val arr = org.json.JSONArray(body)
+                if (arr.length() > 0) {
+                    val obj = arr.getJSONObject(0)
+                    lat = obj.getString("lat").toDouble()
+                    lon = obj.getString("lon").toDouble()
+                    targetPoint = lat to lon
+                    searchError = ""
+                    val addr = obj.optJSONObject("address")
+                    if (addr != null) {
+                        val c = addr.optString("city")
+                            .ifBlank { addr.optString("town") }
+                            .ifBlank { addr.optString("village") }
+                            .ifBlank { addr.optString("municipality") }
+                        val r = addr.optString("road")
+                        val h = addr.optString("house_number")
+                        if (c.isNotBlank()) city = c
+                        if (r.isNotBlank()) street = r
+                        if (h.isNotBlank()) house = h
+                    }
+                    val full = obj.optString("display_name")
+                    if (full.isNotBlank()) detectedAddress = full
+                } else {
+                    searchError = "Адрес не найден"
+                }
+            } catch (e: Exception) {
+                searchError = "Ошибка: ${e.message}"
+            } finally {
+                searchLoading = false
+            }
+        } else {
+            searchLoading = false
+        }
+    }
+
+    // Обратное геокодирование: только от движения камеры, не от поиска
+    LaunchedEffect(cameraLat, cameraLon) {
+        if (cameraLat == 0.0 && cameraLon == 0.0) return@LaunchedEffect
+        delay(1200)
+        try {
+            val url = "$backendBase/reverse?lat=$cameraLat&lon=$cameraLon"
+            val body = withContext(Dispatchers.IO) {
+                httpClient.newCall(okhttp3.Request.Builder().url(url).build()).execute().body?.string()
+            } ?: return@LaunchedEffect
+            val json = org.json.JSONObject(body)
+            val addr = json.optJSONObject("address") ?: return@LaunchedEffect
+            val c = addr.optString("city")
+                .ifBlank { addr.optString("town") }
+                .ifBlank { addr.optString("village") }
+                .ifBlank { addr.optString("municipality") }
+            val r = addr.optString("road")
+            val h = addr.optString("house_number")
+            val full = json.optString("display_name")
+            if (c.isNotBlank()) city = c
+            if (r.isNotBlank()) street = r
+            if (h.isNotBlank()) house = h
+            if (full.isNotBlank()) detectedAddress = full
+        } catch (_: Exception) {}
+    }
+
+    var name by remember { mutableStateOf("") }
+    var workingHours by remember { mutableStateOf("") }
+    var deliveryFee by remember { mutableStateOf("0") }
+    var minOrderAmount by remember { mutableStateOf("0") }
+
+    var managerEmail by remember { mutableStateOf("") }
+    var managerPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // ── Шапка ──────────────────────────────────────────────────
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    IconButton(onClick = { if (step == 0) onDismiss() else step-- }) {
+                        Icon(Icons.TwoTone.ArrowBack, null, tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            listOf("Местоположение", "Детали филиала", "Аккаунт")[step],
+                            fontFamily = SoraFontFamily, fontWeight = FontWeight.W700, fontSize = 18.sp
+                        )
+                        Text(
+                            "Шаг ${step + 1} из 3",
+                            fontFamily = SoraFontFamily, fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // ── Индикатор прогресса ────────────────────────────────────
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    repeat(3) { idx ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(if (idx <= step) colorDarkOrange else MaterialTheme.colorScheme.surfaceVariant)
+                        )
+                    }
+                }
+
+                // ── Контент шага ───────────────────────────────────────────
+                when (step) {
+                    0 -> {
+                        Column(modifier = Modifier.weight(1f)) {
+                            // Поиск адреса
+                            OutlinedTextField(
+                                value = mapSearchQuery,
+                                onValueChange = { mapSearchQuery = it },
+                                placeholder = { Text("Найти адрес...", fontFamily = SoraFontFamily) },
+                                leadingIcon = {
+                                    if (searchLoading)
+                                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = colorDarkOrange)
+                                    else
+                                        Icon(Icons.TwoTone.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                },
+                                trailingIcon = {
+                                    if (mapSearchQuery.isNotBlank()) {
+                                        IconButton(onClick = { mapSearchQuery = ""; searchError = "" }) {
+                                            Icon(Icons.TwoTone.Clear, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
+                            )
+                            if (searchError.isNotBlank()) {
+                                Text(
+                                    searchError,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 12.sp,
+                                    fontFamily = SoraFontFamily,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                            }
+                            // Карта
+                            YandexMapPicker(
+                                initialLat = lat, initialLon = lon,
+                                targetPoint = targetPoint,
+                                onCameraIdle = { la, lo -> lat = la; lon = lo; cameraLat = la; cameraLon = lo },
+                                modifier = Modifier.fillMaxWidth().weight(1f)
+                            )
+                            // Панель адреса (как в Delivery Club)
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shadowElevation = 12.dp,
+                                color = MaterialTheme.colorScheme.surface
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    if (detectedAddress.isNotBlank()) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.Top
+                                        ) {
+                                            Icon(Icons.TwoTone.Place, null, modifier = Modifier.size(16.dp).padding(top = 2.dp), tint = colorDarkOrange)
+                                            Text(
+                                                detectedAddress,
+                                                fontFamily = SoraFontFamily, fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        HorizontalDivider()
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        OutlinedTextField(
+                                            value = city, onValueChange = { city = it },
+                                            label = { Text("Город", fontFamily = SoraFontFamily, fontSize = 12.sp) },
+                                            singleLine = true, modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
+                                        )
+                                        OutlinedTextField(
+                                            value = street, onValueChange = { street = it },
+                                            label = { Text("Улица", fontFamily = SoraFontFamily, fontSize = 12.sp) },
+                                            singleLine = true, modifier = Modifier.weight(1.8f),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
+                                        )
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        OutlinedTextField(
+                                            value = house, onValueChange = { house = it },
+                                            label = { Text("Дом", fontFamily = SoraFontFamily, fontSize = 12.sp) },
+                                            singleLine = true, modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
+                                        )
+                                        OutlinedTextField(
+                                            value = building, onValueChange = { building = it },
+                                            label = { Text("Корпус/стр.", fontFamily = SoraFontFamily, fontSize = 12.sp) },
+                                            placeholder = { Text("необяз.", fontFamily = SoraFontFamily, fontSize = 12.sp) },
+                                            singleLine = true, modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
+                                        )
+                                    }
+                                    Button(
+                                        onClick = { step = 1 },
+                                        enabled = city.isNotBlank() && street.isNotBlank() && house.isNotBlank(),
+                                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = colorDarkOrange),
+                                        shape = RoundedCornerShape(14.dp)
+                                    ) {
+                                        Text("Подтвердить адрес", fontFamily = SoraFontFamily, fontWeight = FontWeight.W700, fontSize = 15.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    1 -> {
+                        Column(
+                            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = name, onValueChange = { name = it },
+                                label = { Text("Название филиала", fontFamily = SoraFontFamily) },
+                                placeholder = { Text("Например: Центральный", fontFamily = SoraFontFamily) },
+                                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
+                            )
+                            OutlinedTextField(
+                                value = workingHours, onValueChange = { workingHours = it },
+                                label = { Text("Часы работы", fontFamily = SoraFontFamily) },
+                                placeholder = { Text("09:00–22:00", fontFamily = SoraFontFamily) },
+                                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                OutlinedTextField(
+                                    value = deliveryFee,
+                                    onValueChange = { if (it.isEmpty() || it.matches(Regex("\\d{0,8}"))) deliveryFee = it },
+                                    label = { Text("Доставка ₽", fontFamily = SoraFontFamily, fontSize = 12.sp) },
+                                    singleLine = true, modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
+                                )
+                                OutlinedTextField(
+                                    value = minOrderAmount,
+                                    onValueChange = { if (it.isEmpty() || it.matches(Regex("\\d{0,8}"))) minOrderAmount = it },
+                                    label = { Text("Мин. заказ ₽", fontFamily = SoraFontFamily, fontSize = 12.sp) },
+                                    singleLine = true, modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { step = 2 },
+                                enabled = name.isNotBlank(),
+                                modifier = Modifier.fillMaxWidth().height(52.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = colorDarkOrange),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Text("Далее", fontFamily = SoraFontFamily, fontWeight = FontWeight.W700, fontSize = 15.sp)
+                            }
+                        }
+                    }
+                    2 -> {
+                        Column(
+                            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Text(
+                                "Создайте аккаунт для входа в приложение филиала",
+                                fontFamily = SoraFontFamily, fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            OutlinedTextField(
+                                value = managerEmail, onValueChange = { managerEmail = it },
+                                label = { Text("Логин (Email)", fontFamily = SoraFontFamily) },
+                                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Email),
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
+                            )
+                            OutlinedTextField(
+                                value = managerPassword, onValueChange = { managerPassword = it },
+                                label = { Text("Пароль", fontFamily = SoraFontFamily) },
+                                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None
+                                                       else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                        Icon(if (passwordVisible) Icons.TwoTone.Info else Icons.TwoTone.Lock, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = {
+                                    onConfirm(
+                                        BranchRequest(
+                                            name = name,
+                                            address = listOf(street, house, building).filter { it.isNotBlank() }.joinToString(", "),
+                                            city = city,
+                                            latitude = lat,
+                                            longitude = lon,
+                                            deliveryFee = deliveryFee.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO,
+                                            minOrderAmount = minOrderAmount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO,
+                                            workingHours = workingHours.ifBlank { null },
+                                            managerEmail = managerEmail,
+                                            managerPassword = managerPassword
+                                        )
+                                    )
+                                },
+                                enabled = managerEmail.isNotBlank() && managerPassword.length >= 4,
+                                modifier = Modifier.fillMaxWidth().height(52.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = colorDarkOrange),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Text("Отправить на модерацию", fontFamily = SoraFontFamily, fontWeight = FontWeight.W700, fontSize = 15.sp)
+                            }
+                        }
+                    }
                 }
             }
         }

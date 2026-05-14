@@ -3,6 +3,7 @@ package com.example.coffeeshop.data.repository
 import com.example.coffeeshop.data.remote.api.ApiService
 import com.example.coffeeshop.data.remote.response.AdminCourierResponse
 import com.example.coffeeshop.data.remote.response.AdminUserResponse
+import com.example.coffeeshop.data.remote.response.BranchResponse
 import com.example.coffeeshop.data.remote.response.ProductResponse
 import com.example.coffeeshop.data.remote.response.SellerResponse
 import com.example.coffeeshop.domain.RejectSellerRequest
@@ -76,5 +77,17 @@ class AdminRepository @Inject constructor(
 
     suspend fun deleteProduct(productId: Int): Boolean = try {
         apiService.adminDeleteProduct(productId).isSuccessful
+    } catch (e: Exception) { false }
+
+    suspend fun getPendingBranches(): List<BranchResponse> = try {
+        apiService.getAdminPendingBranches().body() ?: emptyList()
+    } catch (e: Exception) { emptyList() }
+
+    suspend fun approveBranch(branchId: Long): Boolean = try {
+        apiService.adminApproveBranch(branchId).isSuccessful
+    } catch (e: Exception) { false }
+
+    suspend fun rejectBranch(branchId: Long, reason: String): Boolean = try {
+        apiService.adminRejectBranch(branchId, RejectSellerRequest(reason)).isSuccessful
     } catch (e: Exception) { false }
 }

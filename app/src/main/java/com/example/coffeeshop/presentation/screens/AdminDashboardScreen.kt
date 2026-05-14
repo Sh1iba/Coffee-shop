@@ -3,10 +3,13 @@ package com.example.coffeeshop.presentation.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.ExitToApp
 import androidx.compose.material.icons.twotone.*
@@ -26,6 +29,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.coffeeshop.data.remote.response.AdminUserResponse
+import com.example.coffeeshop.data.remote.response.BranchResponse
 import com.example.coffeeshop.data.remote.response.ProductResponse
 import com.example.coffeeshop.data.remote.response.SellerResponse
 import com.example.coffeeshop.navigation.NavigationRoutes
@@ -42,6 +46,7 @@ fun AdminDashboardScreen(navController: NavController) {
 
     val pendingSellers by viewModel.pendingSellers.collectAsState()
     val pendingProducts by viewModel.pendingProducts.collectAsState()
+    val pendingBranches by viewModel.pendingBranches.collectAsState()
     val allSellers by viewModel.allSellers.collectAsState()
     val allUsers by viewModel.allUsers.collectAsState()
     val sellerProducts by viewModel.sellerProducts.collectAsState()
@@ -54,7 +59,7 @@ fun AdminDashboardScreen(navController: NavController) {
 
     LaunchedEffect(selectedTab) {
         when (selectedTab) {
-            0 -> { viewModel.loadPendingSellers(); viewModel.loadPendingProducts() }
+            0 -> { viewModel.loadPendingSellers(); viewModel.loadPendingProducts(); viewModel.loadPendingBranches() }
             1 -> viewModel.loadAllSellers()
             2 -> viewModel.loadAllUsers()
         }
@@ -108,7 +113,7 @@ fun AdminDashboardScreen(navController: NavController) {
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
                     text = {
-                        val total = pendingSellers.size + pendingProducts.size
+                        val total = pendingSellers.size + pendingProducts.size + pendingBranches.size
                         Text(
                             if (total > 0) "Модерация ($total)" else "Модерация",
                             fontFamily = SoraFontFamily,
@@ -152,13 +157,16 @@ fun AdminDashboardScreen(navController: NavController) {
                     0 -> ModerationTab(
                         sellers = pendingSellers,
                         pendingProducts = pendingProducts,
+                        pendingBranches = pendingBranches,
                         sellerProducts = sellerProducts,
                         onApprove = { viewModel.approveSeller(it) },
                         onReject = { id, reason -> viewModel.rejectSeller(id, reason) },
                         onLoadProducts = { viewModel.loadSellerProducts(it) },
                         onApproveProduct = { sid, pid -> viewModel.approveProduct(sid, pid) },
                         onRejectProduct = { sid, pid, reason -> viewModel.rejectProduct(sid, pid, reason) },
-                        onDeleteProduct = { sid, pid -> viewModel.deleteProduct(sid, pid) }
+                        onDeleteProduct = { sid, pid -> viewModel.deleteProduct(sid, pid) },
+                        onApproveBranch = { viewModel.approveBranch(it) },
+                        onRejectBranch = { id, reason -> viewModel.rejectBranch(id, reason) }
                     )
                     1 -> SellersAdminTab(
                         sellers = allSellers,
@@ -227,33 +235,39 @@ fun AdminDashboardScreen(navController: NavController) {
 private fun ModerationTab(
     sellers: List<SellerResponse>,
     pendingProducts: List<ProductResponse>,
+    pendingBranches: List<BranchResponse>,
     sellerProducts: Map<Long, List<ProductResponse>>,
     onApprove: (Long) -> Unit,
     onReject: (Long, String) -> Unit,
     onLoadProducts: (Long) -> Unit,
     onApproveProduct: (Long, Int) -> Unit,
     onRejectProduct: (Long, Int, String) -> Unit,
-    onDeleteProduct: (Long, Int) -> Unit
+    onDeleteProduct: (Long, Int) -> Unit,
+    onApproveBranch: (Long) -> Unit,
+    onRejectBranch: (Long, String) -> Unit
 ) {
     var rejectTarget by remember { mutableStateOf<SellerResponse?>(null) }
     var rejectReason by remember { mutableStateOf("") }
-    var filter by remember { mutableIntStateOf(0) } // 0=Все, 1=Магазины, 2=Товары
+    var filter by remember { mutableIntStateOf(0) } // 0=Все, 1=Магазины, 2=Товары, 3=Филиалы
 
     val showSellers = filter == 0 || filter == 1
     val showProducts = filter == 0 || filter == 2
+    val showBranches = filter == 0 || filter == 3
 
     Column(modifier = Modifier.fillMaxSize()) {
         // ── Фильтр-чипы ────────────────────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             listOf(
-                "Все ${sellers.size + pendingProducts.size}",
+                "Все ${sellers.size + pendingProducts.size + pendingBranches.size}",
                 "Магазины ${sellers.size}",
-                "Товары ${pendingProducts.size}"
+                "Товары ${pendingProducts.size}",
+                "Филиалы ${pendingBranches.size}"
             ).forEachIndexed { idx, label ->
                 FilterChip(
                     selected = filter == idx,
@@ -274,7 +288,7 @@ private fun ModerationTab(
             }
         }
 
-        if (sellers.isEmpty() && pendingProducts.isEmpty()) {
+        if (sellers.isEmpty() && pendingProducts.isEmpty() && pendingBranches.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -325,6 +339,26 @@ private fun ModerationTab(
                             onReject = { },
                             onDelete = { onDeleteProduct(sellerId, product.id) },
                             onRejectWithReason = { reason -> onRejectProduct(sellerId, product.id, reason) }
+                        )
+                    }
+                }
+
+                // ── Филиалы на модерации ────────────────────────────────────
+                if (showBranches && pendingBranches.isNotEmpty()) {
+                    item {
+                        Text(
+                            "Филиалы на модерации (${pendingBranches.size})",
+                            fontFamily = SoraFontFamily,
+                            fontWeight = FontWeight.W700,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    items(pendingBranches, key = { "branch_${it.id}" }) { branch ->
+                        BranchModerationCard(
+                            branch = branch,
+                            onApprove = { onApproveBranch(branch.id) },
+                            onRejectWithReason = { reason -> onRejectBranch(branch.id, reason) }
                         )
                     }
                 }
@@ -931,6 +965,124 @@ private fun AdminInfoRow(
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(text, fontFamily = SoraFontFamily, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+// ── Карточка модерации филиала ─────────────────────────────────────────────────
+
+@Composable
+private fun BranchModerationCard(
+    branch: BranchResponse,
+    onApprove: () -> Unit,
+    onRejectWithReason: (String) -> Unit
+) {
+    var showRejectDialog by remember { mutableStateOf(false) }
+    var rejectReason by remember { mutableStateOf("") }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(Icons.TwoTone.Place, null, modifier = Modifier.size(28.dp), tint = colorDarkOrange)
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(branch.name, fontFamily = SoraFontFamily, fontWeight = FontWeight.W700, fontSize = 15.sp)
+                    Text(branch.sellerName, fontFamily = SoraFontFamily, fontSize = 12.sp, color = colorDarkOrange)
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.TwoTone.Place, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${branch.city}, ${branch.address}", fontFamily = SoraFontFamily, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (branch.latitude != null && branch.longitude != null) {
+                    Text(
+                        "Координаты: ${String.format("%.5f", branch.latitude)}, ${String.format("%.5f", branch.longitude)}",
+                        fontFamily = SoraFontFamily, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+                if (!branch.workingHours.isNullOrBlank()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.TwoTone.Info, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(branch.workingHours, fontFamily = SoraFontFamily, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                if (!branch.managerEmail.isNullOrBlank()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.TwoTone.Person, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(branch.managerEmail, fontFamily = SoraFontFamily, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Доставка: ${branch.deliveryFee.toInt()}₽", fontFamily = SoraFontFamily, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Мин. заказ: ${branch.minOrderAmount.toInt()}₽", fontFamily = SoraFontFamily, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onApprove,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(vertical = 10.dp)
+                ) {
+                    Icon(Icons.TwoTone.CheckCircle, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Одобрить", fontFamily = SoraFontFamily, fontWeight = FontWeight.W600, fontSize = 13.sp, color = Color.White)
+                }
+                OutlinedButton(
+                    onClick = { showRejectDialog = true },
+                    modifier = Modifier.weight(1f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(vertical = 10.dp)
+                ) {
+                    Icon(Icons.TwoTone.Clear, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Отклонить", fontFamily = SoraFontFamily, fontWeight = FontWeight.W600, fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
+
+    if (showRejectDialog) {
+        AlertDialog(
+            onDismissRequest = { showRejectDialog = false; rejectReason = "" },
+            title = { Text("Отклонить «${branch.name}»", fontFamily = SoraFontFamily, fontWeight = FontWeight.W600, fontSize = 18.sp) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Укажите причину отклонения:", fontFamily = SoraFontFamily, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(
+                        value = rejectReason, onValueChange = { rejectReason = it },
+                        placeholder = { Text("Например: неверный адрес или координаты", fontFamily = SoraFontFamily) },
+                        modifier = Modifier.fillMaxWidth(), minLines = 3
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { onRejectWithReason(rejectReason.trim()); showRejectDialog = false; rejectReason = "" },
+                    enabled = rejectReason.isNotBlank()
+                ) { Text("Отклонить", fontFamily = SoraFontFamily, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRejectDialog = false; rejectReason = "" }) {
+                    Text("Отмена", fontFamily = SoraFontFamily, color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     }
 }
 

@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <application
         android:name=".CoffeeShopApplication"
@@ -13,6 +15,10 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.CoffeeShop"
         tools:targetApi="31">
+
+        <meta-data
+            android:name="com.yandex.android.mapkit.ApiKey"
+            android:value="669d523d-1916-4697-86f8-bc46f40c51eb" />
 
         <activity
             android:name=".MainActivity"

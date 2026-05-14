@@ -249,4 +249,18 @@ interface ApiService {
 
     @DELETE("admin/products/{productId}")
     suspend fun adminDeleteProduct(@Path("productId") productId: Int): Response<ApiResponse>
+
+    // ── ADMIN BRANCHES ─────────────────────────────────────────────────────
+
+    @GET("admin/branches/pending")
+    suspend fun getAdminPendingBranches(): Response<List<BranchResponse>>
+
+    @PUT("admin/branches/{branchId}/approve")
+    suspend fun adminApproveBranch(@Path("branchId") branchId: Long): Response<ApiResponse>
+
+    @PUT("admin/branches/{branchId}/reject")
+    suspend fun adminRejectBranch(
+        @Path("branchId") branchId: Long,
+        @Body request: RejectSellerRequest
+    ): Response<ApiResponse>
 }

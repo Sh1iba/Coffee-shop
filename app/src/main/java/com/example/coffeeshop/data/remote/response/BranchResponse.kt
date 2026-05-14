@@ -15,5 +15,7 @@ data class BranchResponse(
     val minOrderAmount: BigDecimal,
     val workingHours: String?,
     val isActive: Boolean,
-    val managerEmail: String?
+    val managerEmail: String?,
+    val status: String = "APPROVED",
+    val rejectionReason: String? = null
 )

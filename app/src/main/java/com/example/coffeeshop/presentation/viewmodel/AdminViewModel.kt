@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.coffeeshop.data.remote.response.AdminCourierResponse
 import com.example.coffeeshop.data.remote.response.AdminUserResponse
+import com.example.coffeeshop.data.remote.response.BranchResponse
 import com.example.coffeeshop.data.remote.response.ProductResponse
 import com.example.coffeeshop.data.remote.response.SellerResponse
 import com.example.coffeeshop.data.repository.AdminRepository
@@ -33,6 +34,9 @@ class AdminViewModel @Inject constructor(
     private val _pendingProducts = MutableStateFlow<List<ProductResponse>>(emptyList())
     val pendingProducts: StateFlow<List<ProductResponse>> = _pendingProducts
 
+    private val _pendingBranches = MutableStateFlow<List<BranchResponse>>(emptyList())
+    val pendingBranches: StateFlow<List<BranchResponse>> = _pendingBranches
+
     private val _sellerProducts = MutableStateFlow<Map<Long, List<ProductResponse>>>(emptyMap())
     val sellerProducts: StateFlow<Map<Long, List<ProductResponse>>> = _sellerProducts
 
@@ -53,6 +57,32 @@ class AdminViewModel @Inject constructor(
     fun loadPendingProducts() {
         viewModelScope.launch {
             _pendingProducts.value = adminRepository.getPendingProducts()
+        }
+    }
+
+    fun loadPendingBranches() {
+        viewModelScope.launch {
+            _pendingBranches.value = adminRepository.getPendingBranches()
+        }
+    }
+
+    fun approveBranch(branchId: Long) {
+        viewModelScope.launch {
+            if (adminRepository.approveBranch(branchId)) {
+                _pendingBranches.value = _pendingBranches.value.filter { it.id != branchId }
+            } else {
+                _error.value = "Не удалось одобрить филиал"
+            }
+        }
+    }
+
+    fun rejectBranch(branchId: Long, reason: String) {
+        viewModelScope.launch {
+            if (adminRepository.rejectBranch(branchId, reason)) {
+                _pendingBranches.value = _pendingBranches.value.filter { it.id != branchId }
+            } else {
+                _error.value = "Не удалось отклонить филиал"
+            }
         }
     }
 
