@@ -50,7 +50,9 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -129,8 +131,10 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
     val recommendedProducts by viewModel.recommendedProducts.collectAsState()
     val showSections = !homeState.isSearching && homeState.selectedTypeName == "Все товары"
 
+    val listState = rememberLazyListState()
+
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
 
             // ── Шапка ─────────────────────────────────────────────────────────
             item {

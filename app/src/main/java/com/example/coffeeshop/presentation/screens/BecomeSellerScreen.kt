@@ -60,22 +60,22 @@ fun BecomeSellerScreen(navController: NavController) {
     val error by viewModel.error.collectAsState()
     val success by viewModel.success.collectAsState()
 
-    var step by remember { mutableIntStateOf(0) }
+    var step by rememberSaveable { mutableIntStateOf(0) }
 
     // Шаг 1 — Основная информация
-    var name by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
     var categoryExpanded by remember { mutableStateOf(false) }
 
     // Шаг 2 — Контакты
-    var phone by remember { mutableStateOf("") }
-    var website by remember { mutableStateOf("") }
+    var phone by rememberSaveable { mutableStateOf("") }
+    var website by rememberSaveable { mutableStateOf("") }
 
     // Баннер
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var bannerUrl by remember { mutableStateOf("") }
+    var bannerUrl by rememberSaveable { mutableStateOf("") }
     var bannerPreviewUri by remember { mutableStateOf<Uri?>(null) }
     val isBannerUploading by viewModel.isBannerUploading.collectAsState()
 

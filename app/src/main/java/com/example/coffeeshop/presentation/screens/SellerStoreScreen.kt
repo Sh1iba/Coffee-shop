@@ -91,8 +91,8 @@ fun SellerStoreScreen(navController: NavController, sellerId: Long) {
     val products  by viewModel.products.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    var searchQuery      by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Все") }
+    var searchQuery      by rememberSaveable { mutableStateOf("") }
+    var selectedCategory by rememberSaveable { mutableStateOf("Все") }
 
     val categories = remember(products) {
         listOf("Все") + products.map { it.type.type }.distinct()

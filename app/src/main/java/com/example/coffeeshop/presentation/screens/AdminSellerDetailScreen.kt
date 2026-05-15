@@ -43,7 +43,7 @@ fun AdminSellerDetailScreen(navController: NavController, sellerId: Long) {
     val products = sellerProducts[sellerId]
     val branches = sellerBranches[sellerId]
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {

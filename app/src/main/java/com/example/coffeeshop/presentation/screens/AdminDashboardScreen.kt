@@ -53,7 +53,7 @@ fun AdminDashboardScreen(navController: NavController) {
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -1092,7 +1092,7 @@ private fun SellersAdminTab(
     onToggleActive: (SellerResponse) -> Unit,
     onSellerClick: (Long) -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val filtered = remember(sellers, searchQuery) {
         if (searchQuery.isBlank()) sellers
@@ -1182,7 +1182,7 @@ private fun SellerAdminCard(
 
 @Composable
 private fun UsersTab(users: List<AdminUserResponse>) {
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val filtered = remember(users, searchQuery) {
         if (searchQuery.isBlank()) users
