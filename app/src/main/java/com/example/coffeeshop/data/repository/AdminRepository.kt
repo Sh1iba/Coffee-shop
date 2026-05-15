@@ -79,6 +79,10 @@ class AdminRepository @Inject constructor(
         apiService.adminDeleteProduct(productId).isSuccessful
     } catch (e: Exception) { false }
 
+    suspend fun getSellerBranches(sellerId: Long): List<BranchResponse> = try {
+        apiService.getBranchesBySeller(sellerId).body() ?: emptyList()
+    } catch (e: Exception) { emptyList() }
+
     suspend fun getPendingBranches(): List<BranchResponse> = try {
         apiService.getAdminPendingBranches().body() ?: emptyList()
     } catch (e: Exception) { emptyList() }

@@ -40,6 +40,9 @@ class AdminViewModel @Inject constructor(
     private val _sellerProducts = MutableStateFlow<Map<Long, List<ProductResponse>>>(emptyMap())
     val sellerProducts: StateFlow<Map<Long, List<ProductResponse>>> = _sellerProducts
 
+    private val _sellerBranches = MutableStateFlow<Map<Long, List<BranchResponse>>>(emptyMap())
+    val sellerBranches: StateFlow<Map<Long, List<BranchResponse>>> = _sellerBranches
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -70,6 +73,9 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             if (adminRepository.approveBranch(branchId)) {
                 _pendingBranches.value = _pendingBranches.value.filter { it.id != branchId }
+                _sellerBranches.value = _sellerBranches.value.mapValues { (_, branches) ->
+                    branches.map { if (it.id == branchId) it.copy(status = "APPROVED") else it }
+                }
             } else {
                 _error.value = "Не удалось одобрить филиал"
             }
@@ -80,9 +86,19 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             if (adminRepository.rejectBranch(branchId, reason)) {
                 _pendingBranches.value = _pendingBranches.value.filter { it.id != branchId }
+                _sellerBranches.value = _sellerBranches.value.mapValues { (_, branches) ->
+                    branches.map { if (it.id == branchId) it.copy(status = "REJECTED", rejectionReason = reason) else it }
+                }
             } else {
                 _error.value = "Не удалось отклонить филиал"
             }
+        }
+    }
+
+    fun loadSellerBranches(sellerId: Long) {
+        viewModelScope.launch {
+            val branches = adminRepository.getSellerBranches(sellerId)
+            _sellerBranches.value = _sellerBranches.value + (sellerId to branches)
         }
     }
 

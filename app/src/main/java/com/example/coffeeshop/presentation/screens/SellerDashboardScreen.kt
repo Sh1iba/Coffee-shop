@@ -33,6 +33,7 @@ import com.yandex.mapkit.mapview.MapView as YMapView
 import androidx.compose.runtime.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1282,9 +1283,11 @@ private fun BranchCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Row {
-                    IconButton(onClick = onEdit) {
-                        Icon(Icons.TwoTone.Create, "Редактировать", tint = colorDarkOrange)
+                if (branch.status != "PENDING") {
+                    Row {
+                        IconButton(onClick = onEdit) {
+                            Icon(Icons.TwoTone.Create, "Редактировать", tint = colorDarkOrange)
+                        }
                     }
                 }
             }
@@ -1449,8 +1452,6 @@ private fun AddBranchScreen(
     var targetPoint by remember { mutableStateOf<Pair<Double, Double>?>(null) }
     var searchLoading by remember { mutableStateOf(false) }
     var searchError by remember { mutableStateOf("") }
-    var cameraLat by remember { mutableDoubleStateOf(0.0) }
-    var cameraLon by remember { mutableDoubleStateOf(0.0) }
     val httpClient = remember {
         okhttp3.OkHttpClient.Builder()
             .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
@@ -1466,15 +1467,18 @@ private fun AddBranchScreen(
     // Прямое геокодирование: поисковая строка → карта
     LaunchedEffect(mapSearchQuery) {
         searchError = ""
+        searchLoading = false
         if (mapSearchQuery.length >= 3) {
             delay(800)
+            if (!isActive) return@LaunchedEffect
             searchLoading = true
+            val encoded = java.net.URLEncoder.encode(mapSearchQuery, "UTF-8")
+            val url = "$backendBase/search?q=$encoded"
+            val call = httpClient.newCall(okhttp3.Request.Builder().url(url).build())
             try {
-                val encoded = java.net.URLEncoder.encode(mapSearchQuery, "UTF-8")
-                val url = "$backendBase/search?q=$encoded"
-                val body = withContext(Dispatchers.IO) {
-                    httpClient.newCall(okhttp3.Request.Builder().url(url).build()).execute().body?.string()
-                } ?: run { searchError = "Нет ответа от сервера"; return@LaunchedEffect }
+                val body = withContext(Dispatchers.IO) { call.execute().body?.string() }
+                if (!isActive) return@LaunchedEffect
+                if (body.isNullOrBlank()) { searchError = "Нет ответа от сервера"; return@LaunchedEffect }
                 val arr = org.json.JSONArray(body)
                 if (arr.length() > 0) {
                     val obj = arr.getJSONObject(0)
@@ -1499,40 +1503,17 @@ private fun AddBranchScreen(
                 } else {
                     searchError = "Адрес не найден"
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                call.cancel()
+                throw e
             } catch (e: Exception) {
                 searchError = "Ошибка: ${e.message}"
             } finally {
                 searchLoading = false
             }
-        } else {
-            searchLoading = false
         }
     }
 
-    // Обратное геокодирование: только от движения камеры, не от поиска
-    LaunchedEffect(cameraLat, cameraLon) {
-        if (cameraLat == 0.0 && cameraLon == 0.0) return@LaunchedEffect
-        delay(1200)
-        try {
-            val url = "$backendBase/reverse?lat=$cameraLat&lon=$cameraLon"
-            val body = withContext(Dispatchers.IO) {
-                httpClient.newCall(okhttp3.Request.Builder().url(url).build()).execute().body?.string()
-            } ?: return@LaunchedEffect
-            val json = org.json.JSONObject(body)
-            val addr = json.optJSONObject("address") ?: return@LaunchedEffect
-            val c = addr.optString("city")
-                .ifBlank { addr.optString("town") }
-                .ifBlank { addr.optString("village") }
-                .ifBlank { addr.optString("municipality") }
-            val r = addr.optString("road")
-            val h = addr.optString("house_number")
-            val full = json.optString("display_name")
-            if (c.isNotBlank()) city = c
-            if (r.isNotBlank()) street = r
-            if (h.isNotBlank()) house = h
-            if (full.isNotBlank()) detectedAddress = full
-        } catch (_: Exception) {}
-    }
 
     var name by remember { mutableStateOf("") }
     var workingHours by remember { mutableStateOf("") }
@@ -1627,7 +1608,7 @@ private fun AddBranchScreen(
                             YandexMapPicker(
                                 initialLat = lat, initialLon = lon,
                                 targetPoint = targetPoint,
-                                onCameraIdle = { la, lo -> lat = la; lon = lo; cameraLat = la; cameraLon = lo },
+                                onCameraIdle = { la, lo -> lat = la; lon = lo },
                                 modifier = Modifier.fillMaxWidth().weight(1f)
                             )
                             // Панель адреса (как в Delivery Club)
@@ -1713,11 +1694,17 @@ private fun AddBranchScreen(
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
                             )
+                            val workingHoursRegex = Regex("""^\d{1,2}:\d{2}[–\-—]\d{1,2}:\d{2}$""")
+                            val workingHoursError = workingHours.isNotBlank() && !workingHoursRegex.matches(workingHours)
                             OutlinedTextField(
                                 value = workingHours, onValueChange = { workingHours = it },
                                 label = { Text("Часы работы", fontFamily = SoraFontFamily) },
                                 placeholder = { Text("09:00–22:00", fontFamily = SoraFontFamily) },
                                 singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                isError = workingHoursError,
+                                supportingText = if (workingHoursError) {
+                                    { Text("Формат: 09:00–22:00", fontFamily = SoraFontFamily, fontSize = 11.sp) }
+                                } else null,
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
                             )
@@ -1744,7 +1731,7 @@ private fun AddBranchScreen(
                             Spacer(Modifier.height(8.dp))
                             Button(
                                 onClick = { step = 2 },
-                                enabled = name.isNotBlank(),
+                                enabled = name.trim().length >= 2 && !workingHoursError,
                                 modifier = Modifier.fillMaxWidth().height(52.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = colorDarkOrange),
                                 shape = RoundedCornerShape(14.dp)
@@ -1754,6 +1741,9 @@ private fun AddBranchScreen(
                         }
                     }
                     2 -> {
+                        val emailRegex = Regex("^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$")
+                        val emailError = managerEmail.isNotBlank() && !emailRegex.matches(managerEmail)
+                        val passwordError = managerPassword.isNotBlank() && managerPassword.length < 6
                         Column(
                             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1767,6 +1757,10 @@ private fun AddBranchScreen(
                                 value = managerEmail, onValueChange = { managerEmail = it },
                                 label = { Text("Логин (Email)", fontFamily = SoraFontFamily) },
                                 singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                isError = emailError,
+                                supportingText = if (emailError) {
+                                    { Text("Введите корректный email", fontFamily = SoraFontFamily, fontSize = 11.sp) }
+                                } else null,
                                 shape = RoundedCornerShape(12.dp),
                                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Email),
                                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
@@ -1775,6 +1769,10 @@ private fun AddBranchScreen(
                                 value = managerPassword, onValueChange = { managerPassword = it },
                                 label = { Text("Пароль", fontFamily = SoraFontFamily) },
                                 singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                isError = passwordError,
+                                supportingText = if (passwordError) {
+                                    { Text("Минимум 6 символов", fontFamily = SoraFontFamily, fontSize = 11.sp) }
+                                } else null,
                                 shape = RoundedCornerShape(12.dp),
                                 visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None
                                                        else androidx.compose.ui.text.input.PasswordVisualTransformation(),
@@ -1803,7 +1801,7 @@ private fun AddBranchScreen(
                                         )
                                     )
                                 },
-                                enabled = managerEmail.isNotBlank() && managerPassword.length >= 4,
+                                enabled = managerEmail.isNotBlank() && !emailError && managerPassword.length >= 6 && !passwordError,
                                 modifier = Modifier.fillMaxWidth().height(52.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = colorDarkOrange),
                                 shape = RoundedCornerShape(14.dp)
@@ -1891,10 +1889,16 @@ private fun BranchFormDialog(
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
                     )
+                    val whRegex = Regex("""^\d{1,2}:\d{2}[–\-—]\d{1,2}:\d{2}$""")
+                    val whError = workingHours.isNotBlank() && !whRegex.matches(workingHours)
                     OutlinedTextField(
                         value = workingHours, onValueChange = { workingHours = it },
                         label = { Text("Часы работы (напр. 09:00–22:00)", fontFamily = SoraFontFamily) },
                         singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        isError = whError,
+                        supportingText = if (whError) {
+                            { Text("Формат: 09:00–22:00", fontFamily = SoraFontFamily, fontSize = 11.sp) }
+                        } else null,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
                     )
@@ -1936,12 +1940,19 @@ private fun BranchFormDialog(
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        val dlgEmailRegex = Regex("^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$")
+                        val dlgEmailError = managerEmail.isNotBlank() && !dlgEmailRegex.matches(managerEmail)
+                        val dlgPwdError = managerPassword.isNotBlank() && managerPassword.length < 6
                         OutlinedTextField(
                             value = managerEmail,
                             onValueChange = { managerEmail = it },
                             label = { Text("Email менеджера", fontFamily = SoraFontFamily) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
+                            isError = dlgEmailError,
+                            supportingText = if (dlgEmailError) {
+                                { Text("Введите корректный email", fontFamily = SoraFontFamily, fontSize = 11.sp) }
+                            } else null,
                             shape = RoundedCornerShape(12.dp),
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email),
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colorDarkOrange, focusedLabelColor = colorDarkOrange)
@@ -1952,6 +1963,10 @@ private fun BranchFormDialog(
                             label = { Text("Пароль менеджера", fontFamily = SoraFontFamily) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
+                            isError = dlgPwdError,
+                            supportingText = if (dlgPwdError) {
+                                { Text("Минимум 6 символов", fontFamily = SoraFontFamily, fontSize = 11.sp) }
+                            } else null,
                             shape = RoundedCornerShape(12.dp),
                             visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None
                                                    else androidx.compose.ui.text.input.PasswordVisualTransformation(),
@@ -1983,25 +1998,26 @@ private fun BranchFormDialog(
                         shape = RoundedCornerShape(12.dp)
                     ) { Text("Отмена", fontFamily = SoraFontFamily) }
 
+                    val saveEmailRegex = Regex("^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$")
+                    val saveEnabled = name.trim().length >= 2 && address.isNotBlank() && city.isNotBlank() &&
+                        (workingHours.isBlank() || Regex("""^\d{1,2}:\d{2}[–\-—]\d{1,2}:\d{2}$""").matches(workingHours)) &&
+                        (!isCreating || (managerEmail.isNotBlank() && saveEmailRegex.matches(managerEmail) && managerPassword.length >= 6))
                     Button(
                         onClick = {
-                            val baseValid = name.isNotBlank() && address.isNotBlank() && city.isNotBlank()
-                            val managerValid = !isCreating || (managerEmail.isNotBlank() && managerPassword.isNotBlank())
-                            if (baseValid && managerValid) {
-                                onConfirm(
-                                    BranchRequest(
-                                        name = name.trim(),
-                                        address = address.trim(),
-                                        city = city.trim(),
-                                        workingHours = workingHours.trim().ifBlank { null },
-                                        deliveryFee = deliveryFee.toBigDecimalOrNull() ?: BigDecimal.ZERO,
-                                        minOrderAmount = minOrderAmount.toBigDecimalOrNull() ?: BigDecimal.ZERO,
-                                        managerEmail = if (isCreating) managerEmail.trim() else null,
-                                        managerPassword = if (isCreating) managerPassword else null
-                                    )
+                            onConfirm(
+                                BranchRequest(
+                                    name = name.trim(),
+                                    address = address.trim(),
+                                    city = city.trim(),
+                                    workingHours = workingHours.trim().ifBlank { null },
+                                    deliveryFee = deliveryFee.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+                                    minOrderAmount = minOrderAmount.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+                                    managerEmail = if (isCreating) managerEmail.trim() else null,
+                                    managerPassword = if (isCreating) managerPassword else null
                                 )
-                            }
+                            )
                         },
+                        enabled = saveEnabled,
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = colorDarkOrange),
                         shape = RoundedCornerShape(12.dp)

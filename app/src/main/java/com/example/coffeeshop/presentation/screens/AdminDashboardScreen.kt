@@ -170,12 +170,10 @@ fun AdminDashboardScreen(navController: NavController) {
                     )
                     1 -> SellersAdminTab(
                         sellers = allSellers,
-                        sellerProducts = sellerProducts,
                         onToggleActive = { viewModel.toggleSellerActive(it) },
-                        onLoadProducts = { viewModel.loadSellerProducts(it) },
-                        onApproveProduct = { sid, pid -> viewModel.approveProduct(sid, pid) },
-                        onRejectProduct = { sid, pid, reason -> viewModel.rejectProduct(sid, pid, reason) },
-                        onDeleteProduct = { sid, pid -> viewModel.deleteProduct(sid, pid) }
+                        onSellerClick = { sellerId ->
+                            navController.navigate("${NavigationRoutes.ADMIN_SELLER_DETAIL}/$sellerId")
+                        }
                     )
                     2 -> UsersTab(users = allUsers)
                 }
@@ -714,7 +712,7 @@ private fun PendingSellerCard(
 }
 
 @Composable
-private fun ProductModerationCard(
+internal fun ProductModerationCard(
     product: ProductResponse,
     onApprove: () -> Unit,
     onReject: () -> Unit = {},
@@ -955,7 +953,7 @@ private fun ProductModerationCard(
 }
 
 @Composable
-private fun AdminInfoRow(
+internal fun AdminInfoRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String
 ) {
@@ -1091,12 +1089,8 @@ private fun BranchModerationCard(
 @Composable
 private fun SellersAdminTab(
     sellers: List<SellerResponse>,
-    sellerProducts: Map<Long, List<ProductResponse>>,
     onToggleActive: (SellerResponse) -> Unit,
-    onLoadProducts: (Long) -> Unit,
-    onApproveProduct: (Long, Int) -> Unit,
-    onRejectProduct: (Long, Int, String) -> Unit,
-    onDeleteProduct: (Long, Int) -> Unit
+    onSellerClick: (Long) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -1132,12 +1126,8 @@ private fun SellersAdminTab(
                 items(filtered, key = { it.id }) { seller ->
                     SellerAdminCard(
                         seller = seller,
-                        products = sellerProducts[seller.id],
                         onToggleActive = { onToggleActive(seller) },
-                        onLoadProducts = { onLoadProducts(seller.id) },
-                        onApproveProduct = { pid -> onApproveProduct(seller.id, pid) },
-                        onRejectProduct = { pid, reason -> onRejectProduct(seller.id, pid, reason) },
-                        onDeleteProduct = { pid -> onDeleteProduct(seller.id, pid) }
+                        onClick = { onSellerClick(seller.id) }
                     )
                 }
             }
@@ -1148,50 +1138,28 @@ private fun SellersAdminTab(
 @Composable
 private fun SellerAdminCard(
     seller: SellerResponse,
-    products: List<ProductResponse>?,
     onToggleActive: () -> Unit,
-    onLoadProducts: () -> Unit,
-    onApproveProduct: (Int) -> Unit,
-    onRejectProduct: (Int, String) -> Unit,
-    onDeleteProduct: (Int) -> Unit
+    onClick: () -> Unit
 ) {
-    var productsExpanded by remember { mutableStateOf(false) }
-    var rejectProductTarget by remember { mutableStateOf<ProductResponse?>(null) }
-    var rejectProductReason by remember { mutableStateOf("") }
-
-    LaunchedEffect(productsExpanded) {
-        if (productsExpanded && products == null) onLoadProducts()
-    }
-
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = MaterialTheme.shapes.large
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            seller.name,
-                            fontFamily = SoraFontFamily,
-                            fontWeight = FontWeight.W600,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        StatusBadge(seller.status)
-                    }
-                    Text(seller.category, fontFamily = SoraFontFamily, fontSize = 12.sp, color = colorDarkOrange)
-                    Text(seller.ownerName, fontFamily = SoraFontFamily, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(seller.name, fontFamily = SoraFontFamily, fontWeight = FontWeight.W600, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+                    StatusBadge(seller.status)
                 }
-
+                Text(seller.category, fontFamily = SoraFontFamily, fontSize = 12.sp, color = colorDarkOrange)
+                Text(seller.ownerName, fontFamily = SoraFontFamily, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (seller.status == "APPROVED") {
                     Switch(
                         checked = seller.isActive,
@@ -1204,113 +1172,9 @@ private fun SellerAdminCard(
                         )
                     )
                 }
-            }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { productsExpanded = !productsExpanded },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    if (products != null) "Товары (${products.size})" else "Посмотреть товары",
-                    fontFamily = SoraFontFamily,
-                    fontWeight = FontWeight.W600,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Icon(
-                    if (productsExpanded) Icons.TwoTone.KeyboardArrowUp else Icons.TwoTone.KeyboardArrowDown,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (productsExpanded) {
-                if (products == null) {
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = colorDarkOrange, strokeWidth = 2.dp)
-                    }
-                } else if (products.isEmpty()) {
-                    Text(
-                        "Товары ещё не добавлены",
-                        fontFamily = SoraFontFamily,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        products.forEach { product ->
-                            ProductModerationCard(
-                                product = product,
-                                onApprove = { onApproveProduct(product.id) },
-                                onReject = { rejectProductTarget = product },
-                                onDelete = { onDeleteProduct(product.id) }
-                            )
-                        }
-                    }
-                }
+                Icon(Icons.TwoTone.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-    }
-
-    rejectProductTarget?.let { product ->
-        AlertDialog(
-            onDismissRequest = { rejectProductTarget = null; rejectProductReason = "" },
-            title = {
-                Text(
-                    "Отклонить «${product.name}»",
-                    fontFamily = SoraFontFamily,
-                    fontWeight = FontWeight.W600,
-                    fontSize = 18.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        "Укажите причину отклонения:",
-                        fontFamily = SoraFontFamily,
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    OutlinedTextField(
-                        value = rejectProductReason,
-                        onValueChange = { rejectProductReason = it },
-                        placeholder = { Text("Например: фото не соответствует товару", fontFamily = SoraFontFamily) },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onRejectProduct(product.id, rejectProductReason.trim())
-                        rejectProductTarget = null
-                        rejectProductReason = ""
-                    },
-                    enabled = rejectProductReason.isNotBlank()
-                ) {
-                    Text(
-                        "Отклонить",
-                        fontFamily = SoraFontFamily,
-                        fontWeight = FontWeight.W600,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { rejectProductTarget = null; rejectProductReason = "" }) {
-                    Text("Отмена", fontFamily = SoraFontFamily, color = MaterialTheme.colorScheme.primary)
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.surface
-        )
     }
 }
 
@@ -1393,7 +1257,7 @@ private fun UserAdminCard(user: AdminUserResponse) {
 // ── Общие компоненты ──────────────────────────────────────────────────────────
 
 @Composable
-private fun AdminSearchBar(
+internal fun AdminSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     placeholder: String
@@ -1427,7 +1291,7 @@ private fun AdminSearchBar(
 }
 
 @Composable
-private fun StatusBadge(status: String) {
+internal fun StatusBadge(status: String) {
     val (badgeColor, label) = when (status) {
         "APPROVED" -> MaterialTheme.colorScheme.primary to "Одобрен"
         "PENDING" -> Color(0xFFF59E0B) to "На рассмотрении"

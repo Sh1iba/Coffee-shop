@@ -162,6 +162,14 @@ fun AppNavGraph(
             AdminDashboardScreen(navController)
         }
 
+        composable(
+            route = "${NavigationRoutes.ADMIN_SELLER_DETAIL}/{sellerId}",
+            arguments = listOf(navArgument("sellerId") { type = NavType.LongType })
+        ) { entry ->
+            val id = entry.arguments?.getLong("sellerId") ?: return@composable
+            AdminSellerDetailScreen(navController = navController, sellerId = id)
+        }
+
         // ── Legacy routes (kept for back-compat) ───────────────────────────
         composable(
             route = "${NavigationRoutes.ACTIVE_ORDER}/{orderId}",
