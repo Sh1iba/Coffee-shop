@@ -226,8 +226,8 @@ fun DeliveryProgress(status: String, progress: Float) {
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             DeliveryStage("Принят", status !in listOf(""))
-            DeliveryStage("Готовится", status in listOf("PROCESSING", "READY", "DELIVERED"))
-            DeliveryStage("Готов", status in listOf("READY", "DELIVERED"))
+            DeliveryStage("Готовится", status in listOf("COOKING", "READY_FOR_PICKUP", "DELIVERED"))
+            DeliveryStage("Готов", status in listOf("READY_FOR_PICKUP", "DELIVERED"))
             DeliveryStage("Доставлен", status == "DELIVERED")
         }
     }

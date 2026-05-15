@@ -39,36 +39,36 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
 
-private val ACTIVE = setOf("PENDING", "CONFIRMED", "PROCESSING", "READY")
+private val ACTIVE = setOf("PENDING", "CONFIRMED", "COOKING", "READY_FOR_PICKUP")
 
 private fun fmtDate(raw: String) = try {
     LocalDateTime.parse(raw).format(DateTimeFormatter.ofPattern("dd.MM, HH:mm"))
 } catch (_: Exception) { raw }
 
 private fun activeStatusLabel(s: String) = when (s) {
-    "PENDING"    -> "Ожидает подтверждения"
-    "CONFIRMED"  -> "Подтверждён"
-    "PROCESSING" -> "Готовится"
-    "READY"      -> "Готов к выдаче!"
-    else         -> s
+    "PENDING"          -> "Ожидает подтверждения"
+    "CONFIRMED"        -> "Подтверждён"
+    "COOKING"          -> "Готовится"
+    "READY_FOR_PICKUP" -> "Готов к выдаче!"
+    else               -> s
 }
 
 private fun activeStatusColor(s: String) = when (s) {
-    "PENDING"    -> Color(0xFFF57C00)
-    "CONFIRMED"  -> Color(0xFF1E88E5)
-    "PROCESSING" -> Color(0xFF8E24AA)
-    "READY"      -> Color(0xFF43A047)
-    else         -> Color(0xFFF57C00)
+    "PENDING"          -> Color(0xFFF57C00)
+    "CONFIRMED"        -> Color(0xFF1E88E5)
+    "COOKING"          -> Color(0xFF8E24AA)
+    "READY_FOR_PICKUP" -> Color(0xFF43A047)
+    else               -> Color(0xFFF57C00)
 }
 
 private val STEPS = listOf("Принят", "Готовится", "Готов", "Доставлен")
 
 private fun currentStep(status: String) = when (status) {
-    "CONFIRMED"  -> 0
-    "PROCESSING" -> 1
-    "READY"      -> 2
-    "DELIVERED"  -> 3
-    else         -> -1  // PENDING — ещё не подтверждён
+    "CONFIRMED"        -> 0
+    "COOKING"          -> 1
+    "READY_FOR_PICKUP" -> 2
+    "DELIVERED"        -> 3
+    else               -> -1  // PENDING — ещё не подтверждён
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

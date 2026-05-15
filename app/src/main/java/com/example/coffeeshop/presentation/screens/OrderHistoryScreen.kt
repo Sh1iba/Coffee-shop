@@ -38,22 +38,22 @@ private fun parseDate(raw: String): String = try {
 } catch (_: Exception) { raw }
 
 private fun statusLabel(s: String) = when (s) {
-    "PENDING"    -> "Ожидает подтверждения"
-    "CONFIRMED"  -> "Подтверждён"
-    "PROCESSING" -> "Готовится"
-    "READY"      -> "Готов к выдаче"
-    "DELIVERED"  -> "Доставлен"
-    "CANCELLED"  -> "Отменён"
-    else         -> s
+    "PENDING"          -> "Ожидает подтверждения"
+    "CONFIRMED"        -> "Подтверждён"
+    "COOKING"          -> "Готовится"
+    "READY_FOR_PICKUP" -> "Готов к выдаче"
+    "DELIVERED"        -> "Доставлен"
+    "CANCELLED"        -> "Отменён"
+    else               -> s
 }
 
 private fun statusColor(s: String) = when (s) {
-    "CONFIRMED"  -> Color(0xFF1E88E5)
-    "PROCESSING" -> Color(0xFF8E24AA)
-    "READY"      -> Color(0xFF43A047)
-    "DELIVERED"  -> Color(0xFF43A047)
-    "CANCELLED"  -> Color(0xFFE53935)
-    else         -> Color(0xFFF57C00) // PENDING → orange
+    "CONFIRMED"        -> Color(0xFF1E88E5)
+    "COOKING"          -> Color(0xFF8E24AA)
+    "READY_FOR_PICKUP" -> Color(0xFF43A047)
+    "DELIVERED"        -> Color(0xFF43A047)
+    "CANCELLED"        -> Color(0xFFE53935)
+    else               -> Color(0xFFF57C00)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

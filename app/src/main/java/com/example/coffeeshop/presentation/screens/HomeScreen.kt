@@ -50,7 +50,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberSaveable
+
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.Alignment
@@ -83,8 +83,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
+
 import java.net.URLEncoder
 import com.example.coffeeshop.R
 import com.example.coffeeshop.data.remote.response.NominatimAddress

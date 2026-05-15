@@ -263,4 +263,5 @@ interface ApiService {
         @Path("branchId") branchId: Long,
         @Body request: RejectSellerRequest
     ): Response<ApiResponse>
+
 }

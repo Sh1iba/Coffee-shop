@@ -78,21 +78,19 @@ fun SellerDashboardScreen(navController: NavController) {
 
     val myShop by viewModel.myShop.collectAsState()
     val myProducts by viewModel.myProducts.collectAsState()
-    val myOrders by viewModel.myOrders.collectAsState()
     val myBranches by viewModel.myBranches.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val isUploading by viewModel.isUploading.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Магазин", "Товары", "Заказы", "Филиалы")
+    val tabs = listOf("Магазин", "Товары", "Филиалы")
 
     LaunchedEffect(selectedTab) {
         when (selectedTab) {
             0 -> { viewModel.loadMyProducts(); viewModel.loadMyBranches() }
             1 -> viewModel.loadMyProducts()
-            2 -> viewModel.loadMyOrders()
-            3 -> viewModel.loadMyBranches()
+            2 -> viewModel.loadMyBranches()
         }
     }
 
@@ -189,8 +187,7 @@ fun SellerDashboardScreen(navController: NavController) {
                         pendingBranchCount = myBranches.count { it.status == "PENDING" }
                     )
                     1 -> ProductsTab(myProducts, viewModel)
-                    2 -> OrdersTab(myOrders, viewModel)
-                    3 -> BranchesTab(myBranches, viewModel)
+                    2 -> BranchesTab(myBranches, viewModel)
                 }
             }
 
